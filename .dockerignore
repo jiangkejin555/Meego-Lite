@@ -1,0 +1,39 @@
+# Build artifacts
+.next
+.git
+.gitignore
+*.md
+LICENSE
+
+# Node / Bun
+node_modules
+bun.lock
+
+# Local DB (we'll create one inside container)
+db/*.db
+db/*.db-journal
+
+# Env (must be passed via docker run -e or compose env_file)
+.env
+.env.local
+.env.*.local
+
+# IDE / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+dev.log
+server.log
+
+# Test / coverage
+coverage
+*.lcov
+
+# Sandbox-specific
+.zscripts
+download
+agent-ctx

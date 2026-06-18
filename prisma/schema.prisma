@@ -1,0 +1,93 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  avatar          String?
+  feishuId        String?
+  wecomId         String?
+  // Notification preferences
+  notifyEmail     Boolean  @default(true)
+  notifyFeishu    Boolean  @default(false)
+  notifyWeCom     Boolean  @default(false)
+  feishuWebhook   String?
+  wecomWebhook    String?
+  // How many minutes before deadline to send reminder (default 60 min)
+  leadTimeMinutes Int      @default(60)
+  // Relations
+  createdTasks    Task[]   @relation("TaskCreator")
+  assignedTasks   Task[]   @relation("TaskAssignee")
+  comments        Comment[]
+  notifications   Notification[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Task {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  // type: requirement | task | bug
+  type           String       @default("task")
+  // status: todo | in_progress | testing | done | closed
+  status         String       @default("todo")
+  // priority: p0 | p1 | p2 | p3
+  priority       String       @default("p2")
+  deadline       DateTime?
+  progress       Int          @default(0)
+  // Tags stored as JSON array string (SQLite doesn't support list type)
+  tags           String?
+  // Estimated & actual hours
+  estimatedHours Float?
+  actualHours    Float?
+  // Relations
+  creatorId      String
+  assigneeId     String?
+  creator        User         @relation("TaskCreator", fields: [creatorId], references: [id])
+  assignee       User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  comments       Comment[]
+  notifications  Notification[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  taskId    String?
+  // type: deadline_reminder | assignment | status_change | mention
+  type      String
+  // channel: in_app | email | feishu | wecom
+  channel   String
+  title     String
+  content   String
+  // status: pending | sent | failed | read
+  status    String    @default("pending")
+  sentAt    DateTime?
+  readAt    DateTime?
+  error     String?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task      Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+}
