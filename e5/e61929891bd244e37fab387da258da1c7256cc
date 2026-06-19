@@ -1,0 +1,135 @@
+src/components/tasks/task-form.tsx
+  s_8600193f1be087::t_88d58c648efef9 550
+  s_8600193f1be087::t_5aca5b76627889 182
+  s_8600193f1be087::t_169be254430ce8 202-203
+  s_8600193f1be087::t_8f98cac4bd1ddb 160,176
+  s_8600193f1be087::t_5bebd07727a146 316-320
+  s_8600193f1be087::t_a63e22b7392155 61,64-72,84,94-101
+  s_8600193f1be087::t_9ed1b51a35bdbd 388
+  s_8600193f1be087::t_e12f0d8991f05a 545,553,556-559
+  s_8600193f1be087::t_3afe345f537b78 546-549,551-552,554-555,560-565
+src/app/api/projects/[id]/route.ts
+  s_8600193f1be087::t_6c8b26cba3d9b8 58-85,91
+  s_8600193f1be087::t_8df88240f290f9 4,41-42,45-51
+  s_8600193f1be087::t_0f3e365d9d9d45 1-3,5-15,17-40,43-44,52-57,86-90,92-113
+  s_8600193f1be087::t_c968fb3ba1621f 16
+src/components/layout/sidebar.tsx
+  s_8600193f1be087::t_b7f074d6d44afc 6,19-20
+src/components/tasks/task-list.tsx
+  s_8600193f1be087::t_eddc1a8b9e8fb5 205
+  s_eea6430b4bf7cc::t_371380aba891a9 247
+  s_8600193f1be087::t_1555e2e7719d42 240-244
+  s_8600193f1be087::t_c1b54a3a4686b2 78
+  s_8600193f1be087::t_9cf4c5842721c3 188
+  s_8600193f1be087::t_932a02bf670a0e 197
+src/components/dashboard/dashboard.tsx
+  s_8600193f1be087::t_3a7ae78e4a15e9 14,21-23,26,33
+  s_8600193f1be087::t_873753dcb2e0b1 64
+  s_8600193f1be087::t_6af6101bfae00d 177-224
+src/components/tasks/tasks-page.tsx
+  s_8600193f1be087::t_d23614a49ebaeb 211-214,218-220,222-224,229-233,238-239
+  s_8600193f1be087::t_b0cad48d828044 215-217,221,225-228
+  s_8600193f1be087::t_5d16cc87cefd72 34
+  s_8600193f1be087::t_6ccf6b3fff433f 68-74
+  s_8600193f1be087::t_efaea12f679579 90
+  s_8600193f1be087::t_7acf687612e44d 111-115
+src/components/tasks/task-detail.tsx
+  s_8600193f1be087::t_80f59d7132b749 59
+  s_8600193f1be087::t_0ad6ee79725e67 277-284
+src/lib/project-utils.ts
+  s_8600193f1be087::t_fc10e50bac4cb7 1
+prisma/schema.prisma
+  s_8600193f1be087::t_37dc1159e41a09 47
+  s_8600193f1be087::t_57077b29b68327 71,74
+  s_8600193f1be087::t_63a9b2fa760794 39-46,48-50
+  s_8600193f1be087::t_1add48353cbfa8 31
+src/app/api/tasks/route.ts
+  s_8600193f1be087::t_71578e0ee74cd6 114
+  s_8600193f1be087::t_25ecd079549ebe 28-30
+  s_8600193f1be087::t_a487bb52c6b641 47
+  s_8600193f1be087::t_6fb9aed88efda5 18
+.trae/specs/add-project-management/checklist.md
+  h_ffff03b1e83f00 1-2
+src/components/projects/projects-page.tsx
+  s_8600193f1be087::t_64f21e90cc1c41 117
+  s_8600193f1be087::t_70c0bd8fe29f04 175,177-195
+  s_8600193f1be087::t_e60f8e2f7f1daf 1-116,118-174,176,196-254
+src/components/ui/table.tsx
+  s_449bb3ab288885::t_d4a985f9c290b5 26,29
+  s_449bb3ab288885::t_7d44fc3e22eb55 73
+src/lib/projects.ts
+  s_8600193f1be087::t_53de8e5532cb11 1-9,11-63
+  s_8600193f1be087::t_d65f8449ace5af 10
+src/app/page.tsx
+  s_8600193f1be087::t_08cf07b861b3f4 9
+  s_cece2fea36e04f::t_bc713bdf0fd2e1 106,108,120
+  s_8600193f1be087::t_379cbcc7920465 114
+src/components/layout/header.tsx
+  s_8600193f1be087::t_fb25099e53c9c1 25,34,40-41
+src/components/projects/project-form.tsx
+  s_8600193f1be087::t_6e81aefbe3dde3 49,154-161,166-169
+  s_8600193f1be087::t_4616f6c736c0d4 1-23,39-48,51,53-88,93-97,112-140,142-153,162-165,170-186,256-322
+  s_8600193f1be087::t_7c0c4e5117136f 24-38,52,89-92,98-111,141,187-255
+src/app/api/projects/route.ts
+  s_8600193f1be087::t_a8d7bfcf8a7527 24,48-62,69-74
+  s_8600193f1be087::t_82d834b4195689 4,40-46,65
+src/store/app-store.ts
+  s_8600193f1be087::t_ecf681037db48a 64
+  s_8600193f1be087::t_c7c00f4db62e55 29
+  s_8600193f1be087::t_10d5bd6df7fa06 10
+src/app/api/stats/route.ts
+  s_8600193f1be087::t_d6051a0141dad9 93-107,122-127
+src/app/api/tasks/[id]/route.ts
+  s_8600193f1be087::t_6f6c772bf0b27e 22
+  s_8600193f1be087::t_bb54d79659d1b2 78-79
+src/lib/constants.ts
+  s_8600193f1be087::t_2c65ba39c3bf71 5-6
+  s_8600193f1be087::t_cd29c9cf2240a2 78-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e5e61929891bd244e37fab387da258da1c7256cc",
+  "prompts": {},
+  "humans": {
+    "h_ffff03b1e83f00": {
+      "author": "jiangkejin <jiangkejin@bytedance.com>"
+    }
+  },
+  "sessions": {
+    "s_449bb3ab288885": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a34cf31e233688683f62433",
+        "model": "Doubao-Seed-2.0-Code__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    },
+    "s_8600193f1be087": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a33b23be233688683f61079",
+        "model": "gpt-5.5__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    },
+    "s_cece2fea36e04f": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a34d355e233688683f625d7",
+        "model": "gemini-3.1-pro__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    },
+    "s_eea6430b4bf7cc": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a34a8fce233688683f61aeb",
+        "model": "openrouter-3o__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
