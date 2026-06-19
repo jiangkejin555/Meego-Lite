@@ -5,7 +5,6 @@ import {
   stringifyArray,
   type TaskPriority,
   type TaskStatus,
-  type TaskType,
 } from "@/lib/constants";
 
 interface RouteContext {
@@ -51,7 +50,6 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
   const data: Record<string, unknown> = {};
   if (body.title !== undefined) data.title = String(body.title).trim();
   if (body.description !== undefined) data.description = body.description;
-  if (body.type !== undefined) data.type = body.type as TaskType;
   if (body.status !== undefined) data.status = body.status as TaskStatus;
   if (body.priority !== undefined) data.priority = body.priority as TaskPriority;
   if (body.deadline !== undefined) {

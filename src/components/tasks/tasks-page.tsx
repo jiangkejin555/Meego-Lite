@@ -16,7 +16,6 @@ import { Search, RotateCcw, LayoutList, KanbanSquare } from "lucide-react";
 import {
   type TaskPriority,
   type TaskStatus,
-  type TaskType,
 } from "@/lib/constants";
 import { TaskList } from "./task-list";
 import { TaskKanban } from "./task-kanban";
@@ -25,7 +24,6 @@ interface TaskItem {
   id: string;
   title: string;
   description: string | null;
-  type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
@@ -59,6 +57,13 @@ async function fetchUsers() {
   return data.users as UserItem[];
 }
 
+async function fetchTags() {
+  const res = await fetch("/api/tags");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.tags as string[];
+}
+
 export function TasksPage({ mine = false }: { mine?: boolean }) {
   const filter = useAppStore((s) => s.filter);
   const setFilter = useAppStore((s) => s.setFilter);
@@ -69,7 +74,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
   const filterParams = useMemo(
     () => ({
       search: filter.search,
-      type: filter.type,
+      tag: filter.tag,
       status: filter.status,
       priority: filter.priority,
       assigneeId: filter.assigneeId,
@@ -89,6 +94,11 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
     queryFn: fetchUsers,
   });
 
+  const { data: tags = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: fetchTags,
+  });
+
   return (
     <div className="space-y-4">
       {/* Filter Bar and View Switcher */}
@@ -106,20 +116,22 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
           </div>
           
           <Select
-            value={filter.type}
-            onValueChange={(v) => setFilter({ type: v as TaskType | "all" })}
+            value={filter.tag}
+            onValueChange={(v) => setFilter({ tag: v })}
           >
             <SelectTrigger className="h-9 w-auto min-w-[110px] bg-card shadow-sm border-dashed">
               <div className="flex items-center text-xs">
-                <span className="text-muted-foreground mr-1.5">类型:</span>
+                <span className="text-muted-foreground mr-1.5">标签:</span>
                 <SelectValue placeholder="全部" />
               </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
-              <SelectItem value="requirement">需求</SelectItem>
-              <SelectItem value="task">任务</SelectItem>
-              <SelectItem value="bug">缺陷</SelectItem>
+              {tags.map((tag) => (
+                <SelectItem key={tag} value={tag}>
+                  {tag}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -137,7 +149,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
               <SelectItem value="all">全部</SelectItem>
               <SelectItem value="todo">待开始</SelectItem>
               <SelectItem value="in_progress">进行中</SelectItem>
-              <SelectItem value="testing">测试中</SelectItem>
+              <SelectItem value="paused">已暂停</SelectItem>
               <SelectItem value="done">已完成</SelectItem>
               <SelectItem value="closed">已关闭</SelectItem>
             </SelectContent>
@@ -183,7 +195,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
           </Select>
 
           {(filter.search ||
-            filter.type !== "all" ||
+            filter.tag !== "all" ||
             filter.status !== "all" ||
             filter.priority !== "all" ||
             filter.assigneeId !== "all") && (

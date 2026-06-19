@@ -1,12 +1,15 @@
 {
   "name": "nextjs_tailwind_shadcn_ts",
   "version": "0.2.0",
+  "description": "Meego Lite - lightweight project management",
+  "author": "Meego Lite Team",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000 > dev.log 2>&1",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && bun run prune:standalone",
-    "prune:standalone": "cd .next/standalone/node_modules && rm -rf typescript @swc prisma @next/swc-linux-* @next/swc-win32-* @next/swc-darwin-x64 @img/sharp-libvips-linux* @img/sharp-libvips-linuxmusl* @img/sharp-libvips-win32* @img/sharp-libvips-darwin-x64 @img/sharp-linux-* @img/sharp-linuxmusl-* @img/sharp-win32-* @img/sharp-darwin-x64 @img/sharp-wasm32 @parcel/watcher-linux-* @parcel/watcher-win32-* @parcel/watcher-darwin-x64 @parcel/watcher-android-* @parcel/watcher-freebsd-* && find @prisma -type f \\( -name '*query_engine-debian*' -o -name '*query_engine-rhel*' -o -name '*query_engine-linux*' -o -name '*query_engine-windows*' -o -name '*query_engine-darwin-x64*' -o -name '*libquery_engine-debian*' -o -name '*libquery_engine-rhel*' -o -name '*libquery_engine-linux*' -o -name '*query-engine-windows*' -o -name '*query-engine-darwin-x64*' \\) -delete 2>/dev/null; find . -type f \\( -name '*.d.ts' -o -name '*.map' -o -name '*.md' -o -name 'LICENSE*' -o -name 'CHANGELOG*' \\) -delete 2>/dev/null; find . -type d \\( -name 'test' -o -name 'tests' -o -name '__tests__' -o -name '.github' -o -name 'docs' \\) -exec rm -rf {} + 2>/dev/null; true",
+    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && bun run prune:standalone && bun run env:standalone",
+    "env:standalone": "bash scripts/env-standalone.sh",
+    "prune:standalone": "bash scripts/prune-standalone.sh",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "db:push": "prisma db push",
@@ -14,11 +17,11 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "electron:dev": "npm run build && electron .",
-    "clean:mac": "pkill -f 'Meego Lite' 2>/dev/null; rm -rf dist-electron/mac dist-electron/mac-arm64 dist-electron/mac-x64 dist-electron/mac-universal",
+    "clean:mac": "pkill -f 'dist-electron.*Meego Lite' 2>/dev/null; rm -rf dist-electron/mac dist-electron/mac-arm64 dist-electron/mac-x64 dist-electron/mac-universal",
     "clean:win": "rm -rf dist-electron/win-unpacked dist-electron/win-ia32-unpacked dist-electron/win-arm64-unpacked",
     "electron:build": "npm run clean:mac && npm run clean:win && npm run build && electron-builder",
     "electron:build:mac": "npm run clean:mac && npm run build && electron-builder --mac",
-    "electron:build:win": "npm run clean:win && npm run build && electron-builder --win"
+    "electron:build:win": "npm run clean:win && npm run build && electron-builder --win -c.npmRebuild=false -c.buildDependenciesFromSource=false -c.nodeGypRebuild=false"
   },
   "build": {
     "appId": "com.meego.lite",
@@ -50,65 +53,19 @@
         "to": "app",
         "filter": [
           "**/*",
-          "!**/node_modules/@swc/**",
-          "!**/node_modules/@next/swc-linux-*",
-          "!**/node_modules/@next/swc-win32-*",
-          "!**/node_modules/@next/swc-darwin-x64/**",
-          "!**/node_modules/@img/sharp-libvips-linux*/**",
-          "!**/node_modules/@img/sharp-libvips-linuxmusl*/**",
-          "!**/node_modules/@img/sharp-libvips-win32*/**",
-          "!**/node_modules/@img/sharp-libvips-darwin-x64/**",
-          "!**/node_modules/@img/sharp-linux-*/**",
-          "!**/node_modules/@img/sharp-linuxmusl-*/**",
-          "!**/node_modules/@img/sharp-win32-*/**",
-          "!**/node_modules/@img/sharp-darwin-x64/**",
-          "!**/node_modules/@img/sharp-wasm32/**",
-          "!**/node_modules/@parcel/watcher-linux-*/**",
-          "!**/node_modules/@parcel/watcher-win32-*/**",
-          "!**/node_modules/@parcel/watcher-darwin-x64/**",
-          "!**/node_modules/@parcel/watcher-android-*/**",
-          "!**/node_modules/@parcel/watcher-freebsd-*/**",
-          "!**/node_modules/prisma/**",
-          "!**/node_modules/.cache/**",
-          "!**/node_modules/.bin/**",
-          "!**/*.map",
-          "!**/*.d.ts",
-          "!**/*.md",
-          "!**/LICENSE*",
-          "!**/CHANGELOG*",
-          "!**/.github/**",
-          "!**/test/**",
-          "!**/tests/**",
-          "!**/__tests__/**",
-          "!**/*.test.js",
-          "!**/*.spec.js"
+          ".next/**/*",
+          ".env"
         ]
+      },
+      {
+        "from": ".next/standalone/node_modules",
+        "to": "app/node_modules",
+        "filter": ["**/*"]
       },
       {
         "from": "prisma",
         "to": "prisma",
-        "filter": ["schema.prisma"]
-      },
-      {
-        "from": "node_modules/.prisma",
-        "to": "app/node_modules/.prisma",
-        "filter": [
-          "**/*",
-          "!**/*query_engine-darwin-x64*",
-          "!**/*query_engine-linux*",
-          "!**/*query_engine-windows*",
-          "!**/*.d.ts"
-        ]
-      },
-      {
-        "from": "node_modules/@prisma/client",
-        "to": "app/node_modules/@prisma/client",
-        "filter": [
-          "**/*",
-          "!**/*.d.ts",
-          "!**/*.map",
-          "!**/runtime/*.js.map"
-        ]
+        "filter": ["schema.prisma", "dev.db"]
       }
     ],
     "asarUnpack": [
@@ -123,7 +80,12 @@
       "icon": "build/icon.icns"
     },
     "win": {
-      "target": "nsis",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        }
+      ],
       "icon": "build/icon.ico"
     },
     "dmg": {

@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { TaskStatus, TaskType, TaskPriority } from "@/lib/constants";
+import type { TaskStatus, TaskPriority } from "@/lib/constants";
 
 export type ViewKey =
   | "dashboard"
@@ -19,7 +19,7 @@ export interface CurrentUser {
 
 interface TaskFilter {
   search: string;
-  type: TaskType | "all";
+  tag: string | "all";
   status: TaskStatus | "all";
   priority: TaskPriority | "all";
   assigneeId: string | "all";
@@ -53,7 +53,7 @@ interface AppState {
 
 const defaultFilter: TaskFilter = {
   search: "",
-  type: "all",
+  tag: "all",
   status: "all",
   priority: "all",
   assigneeId: "all",

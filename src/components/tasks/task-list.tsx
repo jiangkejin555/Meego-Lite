@@ -56,11 +56,9 @@ import {
   TASK_PRIORITY_LABEL,
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
-  TASK_TYPE_COLOR,
-  TASK_TYPE_LABEL,
+  tagColor,
   type TaskPriority,
   type TaskStatus,
-  type TaskType,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -69,7 +67,6 @@ interface TaskItem {
   id: string;
   title: string;
   description: string | null;
-  type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
@@ -180,7 +177,7 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
             <TableHeader>
               <TableRow>
                 <TableHead className="min-w-[200px]">任务</TableHead>
-                <TableHead className="w-[80px]">类型</TableHead>
+                <TableHead className="w-[180px]">标签</TableHead>
                 <TableHead className="w-[90px]">状态</TableHead>
                 <TableHead className="w-[80px]">优先级</TableHead>
                 <TableHead className="w-[100px]">截止时间</TableHead>
@@ -226,28 +223,27 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
                         <div className="font-medium text-sm line-clamp-1">
                           {t.title}
                         </div>
-                        {t.tags && t.tags.length > 0 && (
-                          <div className="mt-1 flex flex-wrap gap-1">
-                            {t.tags.slice(0, 3).map((tag) => (
-                              <span
-                                key={tag}
-                                className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
                       </TableCell>
                       <TableCell>
-                        <Badge
-                          className={cn(
-                            "border-0",
-                            TASK_TYPE_COLOR[t.type]
-                          )}
-                        >
-                          {TASK_TYPE_LABEL[t.type]}
-                        </Badge>
+                        {t.tags && t.tags.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {t.tags.slice(0, 2).map((tag) => (
+                              <Badge
+                                key={tag}
+                                className={cn("border-0 font-normal", tagColor(tag))}
+                              >
+                                {tag}
+                              </Badge>
+                            ))}
+                            {t.tags.length > 2 && (
+                              <span className="text-[11px] text-muted-foreground">
+                                +{t.tags.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge

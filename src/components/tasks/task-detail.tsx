@@ -32,14 +32,12 @@ import {
   TASK_PRIORITY_LABEL,
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
-  TASK_TYPE_COLOR,
-  TASK_TYPE_LABEL,
+  tagColor,
   NOTIFICATION_CHANNEL_LABEL,
   NOTIFICATION_STATUS_LABEL,
   NOTIFICATION_TYPE_LABEL,
   type TaskPriority,
   type TaskStatus,
-  type TaskType,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -48,7 +46,6 @@ interface TaskDetail {
   id: string;
   title: string;
   description: string | null;
-  type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
@@ -244,12 +241,6 @@ export function TaskDetailDrawer() {
                 {TASK_PRIORITY_LABEL[task.priority]}
               </Badge>
             </MetaRow>
-            
-            <MetaRow label="任务类型">
-              <Badge className={cn("border-0 shadow-none font-medium", TASK_TYPE_COLOR[task.type])}>
-                {TASK_TYPE_LABEL[task.type]}
-              </Badge>
-            </MetaRow>
 
             <MetaRow label="负责人">
               {task.assignee ? (
@@ -330,7 +321,7 @@ export function TaskDetailDrawer() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {task.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="shadow-none font-normal">
+                  <Badge key={tag} className={cn("border-0 shadow-none font-normal", tagColor(tag))}>
                     {tag}
                   </Badge>
                 ))}

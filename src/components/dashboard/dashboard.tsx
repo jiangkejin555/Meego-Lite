@@ -17,18 +17,14 @@ import {
   TASK_PRIORITY_LABEL,
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
-  TASK_TYPE_COLOR,
-  TASK_TYPE_LABEL,
   type TaskPriority,
   type TaskStatus,
-  type TaskType,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface Stats {
   status: Record<TaskStatus, number>;
   priority: Record<TaskPriority, number>;
-  type: Record<TaskType, number>;
   total: number;
   overdueCount: number;
   dueSoonCount: number;
@@ -81,12 +77,11 @@ export function Dashboard() {
   const statusOrder: TaskStatus[] = [
     "todo",
     "in_progress",
-    "testing",
+    "paused",
     "done",
     "closed",
   ];
   const priorityOrder: TaskPriority[] = ["p0", "p1", "p2", "p3"];
-  const typeOrder: TaskType[] = ["requirement", "task", "bug"];
 
   return (
     <div className="space-y-6">
@@ -119,7 +114,7 @@ export function Dashboard() {
       </div>
 
       {/* Distributions */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">状态分布</CardTitle>
@@ -161,29 +156,6 @@ export function Dashboard() {
                   <div className="flex items-center justify-between text-sm">
                     <Badge className={cn("border-0", TASK_PRIORITY_COLOR[p])}>
                       {TASK_PRIORITY_LABEL[p]}
-                    </Badge>
-                    <span className="font-medium tabular-nums">{v}</span>
-                  </div>
-                  <Progress value={pct} className="h-1.5" />
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium">类型分布</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {typeOrder.map((t) => {
-              const v = data.type[t] || 0;
-              const pct = data.total > 0 ? (v / data.total) * 100 : 0;
-              return (
-                <div key={t} className="space-y-1">
-                  <div className="flex items-center justify-between text-sm">
-                    <Badge className={cn("border-0", TASK_TYPE_COLOR[t])}>
-                      {TASK_TYPE_LABEL[t]}
                     </Badge>
                     <span className="font-medium tabular-nums">{v}</span>
                   </div>

@@ -206,9 +206,9 @@ bun run electron:build:win
 
 | 系统 | 数据库路径 |
 |------|----------|
-| macOS | `~/Library/Application Support/Meego Lite/app.db` |
-| Windows | `%APPDATA%\Meego Lite\app.db` |
-| Linux | `~/.config/Meego Lite/app.db` |
+| macOS | `~/Library/Application Support/Meego Lite/meego-lite.db` |
+| Windows | `%APPDATA%\Meego Lite\meego-lite.db` |
+| Linux | `~/.config/Meego Lite/meego-lite.db` |
 
 > ⚠️ 桌面 App 是每台电脑独立的本地数据库，**多人使用时数据不互通**，需要协作请走 Docker / 云端部署。
 >

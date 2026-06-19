@@ -6,6 +6,9 @@ const net = require('net');
 const isDev = !app.isPackaged;
 const PORT = 3000;
 
+// 显式设置应用名，使 userData 目录为 "Meego Lite" 而非 package.json 的 name
+app.setName('Meego Lite');
+
 let nextServerProcess = null;
 let mainWindow = null;
 
@@ -45,7 +48,7 @@ function waitForPort(port, timeout = 30000) {
 // 准备数据库文件：把 prisma/dev.db 复制到 userData 目录
 function setupDatabase() {
   const userDataPath = app.getPath('userData');
-  const dbPath = path.join(userDataPath, 'app.db');
+  const dbPath = path.join(userDataPath, 'meego-lite.db');
 
   if (!fs.existsSync(dbPath)) {
     // 找到打包后的初始 db 文件
@@ -115,28 +118,35 @@ if (!gotSingleInstanceLock) {
   app.quit();
 } else {
   app.on('second-instance', () => {
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
     }
   });
 
-  app.whenReady().then(async () => {
-    try {
+  app.whenReady().then(bootstrap);
+}
+
+// 启动（或重新启动）后端 server 并创建窗口
+async function bootstrap() {
+  try {
+    // 若 server 不存在（被关窗时杀掉），重新拉起
+    if (!nextServerProcess) {
       const dbPath = setupDatabase();
       startNextServer(dbPath);
       await waitForPort(PORT);
-      createWindow();
-    } catch (e) {
-      console.error('[electron] startup failed:', e);
-      app.quit();
     }
-  });
+    createWindow();
+  } catch (e) {
+    console.error('[electron] startup failed:', e);
+    app.quit();
+  }
 }
 
 app.on('window-all-closed', () => {
   if (nextServerProcess) {
     nextServerProcess.kill();
+    nextServerProcess = null;
   }
   if (process.platform !== 'darwin') {
     app.quit();
@@ -146,11 +156,12 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   if (nextServerProcess) {
     nextServerProcess.kill();
+    nextServerProcess = null;
   }
 });
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    bootstrap();
   }
 });

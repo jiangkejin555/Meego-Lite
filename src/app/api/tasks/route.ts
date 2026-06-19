@@ -5,27 +5,26 @@ import {
   stringifyArray,
   type TaskPriority,
   type TaskStatus,
-  type TaskType,
 } from "@/lib/constants";
 import { sendNotification } from "@/lib/notification";
 
 // GET /api/tasks — list with optional filters
 export async function GET(req: NextRequest) {
   const url = req.nextUrl;
-  const type = url.searchParams.get("type") || undefined;
   const status = url.searchParams.get("status") || undefined;
   const priority = url.searchParams.get("priority") || undefined;
   const assigneeId = url.searchParams.get("assigneeId") || undefined;
   const creatorId = url.searchParams.get("creatorId") || undefined;
   const search = url.searchParams.get("search") || undefined;
+  const tag = url.searchParams.get("tag") || undefined;
   const mine = url.searchParams.get("mine"); // current user id
 
   const where: Record<string, unknown> = {};
-  if (type && type !== "all") where.type = type;
   if (status && status !== "all") where.status = status;
   if (priority && priority !== "all") where.priority = priority;
   if (assigneeId && assigneeId !== "all") where.assigneeId = assigneeId;
   if (creatorId && creatorId !== "all") where.creatorId = creatorId;
+  if (tag && tag !== "all") where.tags = { contains: JSON.stringify(tag) };
   if (mine) {
     where.OR = [{ assigneeId: mine }, { creatorId: mine }];
   }
@@ -76,7 +75,6 @@ export async function POST(req: NextRequest) {
     data: {
       title: body.title.trim(),
       description: body.description ?? null,
-      type: (body.type as TaskType) || "task",
       status: (body.status as TaskStatus) || "todo",
       priority: (body.priority as TaskPriority) || "p2",
       deadline: body.deadline ? new Date(body.deadline) : null,

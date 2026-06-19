@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/app-store";
 import {
@@ -29,14 +29,13 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { X, Plus, Calendar as CalendarIcon } from "lucide-react";
+import { X, Plus, Calendar as CalendarIcon, RotateCcw } from "lucide-react";
 import {
   TASK_PRIORITY_LABEL,
   TASK_STATUS_LABEL,
-  TASK_TYPE_LABEL,
+  tagColor,
   type TaskPriority,
   type TaskStatus,
-  type TaskType,
 } from "@/lib/constants";
 import { useToast } from "@/hooks/use-toast";
 
@@ -50,7 +49,6 @@ interface ExistingTask {
   id: string;
   title: string;
   description: string | null;
-  type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
@@ -65,7 +63,6 @@ interface ExistingTask {
 interface TaskFormValues {
   title: string;
   description: string;
-  type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string;
@@ -81,6 +78,13 @@ async function fetchUsers() {
   if (!res.ok) return [];
   const data = await res.json();
   return data.users as UserItem[];
+}
+
+async function fetchTags() {
+  const res = await fetch("/api/tags");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.tags as string[];
 }
 
 async function fetchTask(id: string): Promise<ExistingTask> {
@@ -124,7 +128,6 @@ function buildInitialValues(
     return {
       title: "",
       description: "",
-      type: "task",
       status: "todo",
       priority: "p2",
       deadline: "",
@@ -138,7 +141,6 @@ function buildInitialValues(
   return {
     title: existing.title || "",
     description: existing.description || "",
-    type: existing.type,
     status: existing.status,
     priority: existing.priority,
     deadline: existing.deadline || "",
@@ -150,6 +152,80 @@ function buildInitialValues(
       existing.actualHours != null ? String(existing.actualHours) : "",
     assigneeId: existing.assigneeId || "",
   };
+}
+
+// localStorage 草稿：仅用于新建任务，防止弹窗关闭/刷新后丢失已填内容。
+const DRAFT_KEY = "meego:task-draft:new";
+const DRAFT_VERSION = 1;
+
+interface StoredDraft {
+  v: number;
+  values: TaskFormValues;
+}
+
+function isTaskFormValues(x: unknown): x is TaskFormValues {
+  if (!x || typeof x !== "object") return false;
+  const v = x as Record<string, unknown>;
+  return (
+    typeof v.title === "string" &&
+    typeof v.description === "string" &&
+    typeof v.status === "string" &&
+    typeof v.priority === "string" &&
+    typeof v.deadline === "string" &&
+    typeof v.progress === "number" &&
+    Array.isArray(v.tags) &&
+    typeof v.estimatedHours === "string" &&
+    typeof v.actualHours === "string" &&
+    typeof v.assigneeId === "string"
+  );
+}
+
+function readDraft(): TaskFormValues | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredDraft;
+    if (parsed?.v !== DRAFT_VERSION || !isTaskFormValues(parsed.values)) {
+      window.localStorage.removeItem(DRAFT_KEY);
+      return null;
+    }
+    return parsed.values;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(values: TaskFormValues) {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: StoredDraft = { v: DRAFT_VERSION, values };
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(payload));
+  } catch {
+    // 忽略写入异常（隐私模式 / 配额超限）
+  }
+}
+
+function clearDraft() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+// 草稿是否“有实质内容”，避免空表单也提示恢复。
+function isDraftMeaningful(values: TaskFormValues): boolean {
+  return (
+    values.title.trim() !== "" ||
+    values.description.trim() !== "" ||
+    values.tags.length > 0 ||
+    values.deadline !== "" ||
+    values.estimatedHours !== "" ||
+    values.actualHours !== "" ||
+    values.progress !== 0
+  );
 }
 
 function TaskFormBody({
@@ -170,16 +246,53 @@ function TaskFormBody({
   const queryClient = useQueryClient();
   const isEdit = !!taskId;
 
+  // 新建模式下，挂载时一次性读取本地草稿（编辑模式忽略草稿，始终用服务端数据）。
+  const restoredDraft = useMemo(
+    () => (isEdit ? null : readDraft()),
+    [isEdit]
+  );
+
   // Initialize form state from props — this is the lazy initializer pattern,
   // which avoids the React 19 setState-in-effect rule by deriving state at mount.
+  // 新建模式优先用恢复出的草稿。
   const [form, setForm] = useState<TaskFormValues>(() =>
-    buildInitialValues(existing, currentUser?.id)
+    restoredDraft ?? buildInitialValues(existing, currentUser?.id)
   );
   const [tagInput, setTagInput] = useState("");
+  // 顶部提示条：仅在确实恢复了“有内容”的草稿时显示。
+  const [draftBannerVisible, setDraftBannerVisible] = useState(
+    () => !!restoredDraft && isDraftMeaningful(restoredDraft)
+  );
+
+  // 防抖将表单写入 localStorage（仅新建模式）。
+  useEffect(() => {
+    if (isEdit) return;
+    const timer = window.setTimeout(() => {
+      if (isDraftMeaningful(form)) {
+        writeDraft(form);
+      } else {
+        clearDraft();
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [form, isEdit]);
+
+  const discardDraft = () => {
+    clearDraft();
+    setForm(buildInitialValues(null, currentUser?.id));
+    setTagInput("");
+    setDraftBannerVisible(false);
+  };
+
+  const { data: existingTags = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: fetchTags,
+  });
 
   const createMutation = useMutation({
     mutationFn: createTask,
     onSuccess: () => {
+      clearDraft();
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
       toast({ title: "任务创建成功" });
@@ -233,7 +346,6 @@ function TaskFormBody({
     const payload: Record<string, unknown> = {
       title: form.title.trim(),
       description: form.description.trim() || null,
-      type: form.type,
       status: form.status,
       priority: form.priority,
       deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
@@ -255,8 +367,8 @@ function TaskFormBody({
     }
   };
 
-  const addTag = () => {
-    const t = tagInput.trim();
+  const addTag = (value?: string) => {
+    const t = (value ?? tagInput).trim();
     if (!t) return;
     if (form.tags.includes(t)) {
       setTagInput("");
@@ -268,7 +380,7 @@ function TaskFormBody({
 
   if (isLoading) {
     return (
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>加载中...</DialogTitle>
         </DialogHeader>
@@ -282,10 +394,26 @@ function TaskFormBody({
   }
 
   return (
-    <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onKeyDown={handleKeyDown}>
+    <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onKeyDown={handleKeyDown}>
       <DialogHeader className="px-6 py-4 border-b">
         <DialogTitle>{isEdit ? "编辑任务" : "新建任务"}</DialogTitle>
       </DialogHeader>
+
+      {draftBannerVisible && (
+        <div className="flex items-center gap-3 px-6 py-2.5 bg-amber-50 border-b border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-900/50 dark:text-amber-200">
+          <RotateCcw className="h-4 w-4 shrink-0" />
+          <span className="text-sm flex-1">已恢复上次未完成的草稿</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-amber-900 hover:bg-amber-100 hover:text-amber-900 dark:text-amber-200 dark:hover:bg-amber-900/40"
+            onClick={discardDraft}
+          >
+            清空重填
+          </Button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-6 py-4">
         <div className="space-y-6">
@@ -316,27 +444,8 @@ function TaskFormBody({
             />
           </div>
 
-          {/* Metadata Section (Type, Status, Priority, Assignee, Deadline, Progress) */}
+          {/* Metadata Section (Status, Priority, Assignee, Deadline, Progress) */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-            <div className="space-y-2">
-              <Label>类型</Label>
-              <Select
-                value={form.type}
-                onValueChange={(v) => setForm({ ...form, type: v as TaskType })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(TASK_TYPE_LABEL) as TaskType[]).map((k) => (
-                    <SelectItem key={k} value={k}>
-                      {TASK_TYPE_LABEL[k]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="space-y-2">
               <Label>状态</Label>
               <Select
@@ -507,7 +616,7 @@ function TaskFormBody({
             <Label>标签</Label>
             <div className="flex gap-2">
               <Input
-                placeholder="输入标签后回车"
+                placeholder="输入标签后回车，或从下方选择已有标签"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => {
@@ -517,18 +626,21 @@ function TaskFormBody({
                   }
                 }}
               />
-              <Button type="button" size="icon" variant="outline" onClick={addTag}>
+              <Button type="button" size="icon" variant="outline" onClick={() => addTag()}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
             {form.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
                 {form.tags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="px-2 py-1 gap-1 text-sm font-normal">
+                  <Badge
+                    key={tag}
+                    className={cn("border-0 shadow-none px-2 py-1 gap-1 text-sm font-normal", tagColor(tag))}
+                  >
                     {tag}
                     <button
                       type="button"
-                      className="hover:bg-muted rounded-full p-0.5"
+                      className="hover:bg-black/10 dark:hover:bg-white/10 rounded-full p-0.5"
                       onClick={() =>
                         setForm({
                           ...form,
@@ -540,6 +652,29 @@ function TaskFormBody({
                     </button>
                   </Badge>
                 ))}
+              </div>
+            )}
+            {existingTags.filter((t) => !form.tags.includes(t)).length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-xs text-muted-foreground">已有标签</p>
+                <div className="flex flex-wrap gap-2">
+                  {existingTags
+                    .filter((t) => !form.tags.includes(t))
+                    .map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => addTag(tag)}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-normal transition-opacity hover:opacity-80",
+                          tagColor(tag)
+                        )}
+                      >
+                        <Plus className="h-3 w-3" />
+                        {tag}
+                      </button>
+                    ))}
+                </div>
               </div>
             )}
           </div>
@@ -642,7 +777,7 @@ export function TaskFormDialog() {
         />
       )}
       {open && !showForm && (
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>加载中...</DialogTitle>
           </DialogHeader>

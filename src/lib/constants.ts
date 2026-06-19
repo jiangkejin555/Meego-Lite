@@ -1,7 +1,6 @@
 // Task / Requirement management constants
 
-export type TaskType = "requirement" | "task" | "bug";
-export type TaskStatus = "todo" | "in_progress" | "testing" | "done" | "closed";
+export type TaskStatus = "todo" | "in_progress" | "paused" | "done" | "closed";
 export type TaskPriority = "p0" | "p1" | "p2" | "p3";
 export type NotificationChannel = "in_app" | "email" | "feishu" | "wecom";
 export type NotificationType =
@@ -11,22 +10,35 @@ export type NotificationType =
   | "mention"
   | "comment";
 
-export const TASK_TYPE_LABEL: Record<TaskType, string> = {
-  requirement: "需求",
-  task: "任务",
-  bug: "缺陷",
-};
+// Preset palette for tags. Tags map to a color by a stable hash of their name;
+// when there are more distinct tags than colors, colors repeat (modulo).
+export const TAG_COLORS: string[] = [
+  "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
+  "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+  "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  "bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300",
+  "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+  "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+  "bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300",
+  "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300",
+  "bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300",
+];
 
-export const TASK_TYPE_COLOR: Record<TaskType, string> = {
-  requirement: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
-  task: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  bug: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
-};
+export function tagColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return TAG_COLORS[hash % TAG_COLORS.length];
+}
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   todo: "待开始",
   in_progress: "进行中",
-  testing: "测试中",
+  paused: "已暂停",
   done: "已完成",
   closed: "已关闭",
 };
@@ -34,7 +46,7 @@ export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
 export const TASK_STATUS_COLOR: Record<TaskStatus, string> = {
   todo: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   in_progress: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-  testing: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+  paused: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
   done: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   closed: "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300",
 };
@@ -42,7 +54,7 @@ export const TASK_STATUS_COLOR: Record<TaskStatus, string> = {
 export const TASK_STATUS_ORDER: TaskStatus[] = [
   "todo",
   "in_progress",
-  "testing",
+  "paused",
   "done",
   "closed",
 ];

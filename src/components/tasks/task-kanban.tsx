@@ -27,11 +27,9 @@ import {
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
   TASK_STATUS_ORDER,
-  TASK_TYPE_COLOR,
-  TASK_TYPE_LABEL,
+  tagColor,
   type TaskPriority,
   type TaskStatus,
-  type TaskType,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -41,7 +39,6 @@ interface TaskItem {
   id: string;
   title: string;
   description: string | null;
-  type: TaskType;
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
@@ -108,14 +105,28 @@ function KanbanCard({
       className="cursor-pointer rounded-lg border bg-card p-3 shadow-sm hover:shadow-md transition-shadow active:cursor-grabbing"
     >
       <div className="flex items-start gap-1.5 mb-2 flex-wrap">
-        <Badge className={cn("border-0", TASK_TYPE_COLOR[task.type])}>
-          {TASK_TYPE_LABEL[task.type]}
-        </Badge>
         <Badge className={cn("border-0", TASK_PRIORITY_COLOR[task.priority])}>
           {TASK_PRIORITY_LABEL[task.priority]}
         </Badge>
       </div>
       <h4 className="text-sm font-medium line-clamp-2 mb-2">{task.title}</h4>
+      {task.tags && task.tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1 mb-2">
+          {task.tags.slice(0, 3).map((tag) => (
+            <Badge
+              key={tag}
+              className={cn("border-0 font-normal", tagColor(tag))}
+            >
+              {tag}
+            </Badge>
+          ))}
+          {task.tags.length > 3 && (
+            <span className="text-[11px] text-muted-foreground">
+              +{task.tags.length - 3}
+            </span>
+          )}
+        </div>
+      )}
       {task.deadline && (
         <div
           className={cn(
@@ -233,7 +244,7 @@ export function TaskKanban({ tasks, isLoading }: { tasks: TaskItem[], isLoading:
     const map: Record<TaskStatus, TaskItem[]> = {
       todo: [],
       in_progress: [],
-      testing: [],
+      paused: [],
       done: [],
       closed: [],
     };
