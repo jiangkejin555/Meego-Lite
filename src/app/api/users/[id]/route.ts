@@ -53,10 +53,18 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 // DELETE /api/users/[id]
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
   const { id } = await ctx.params;
-  try {
-    await db.user.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
-  } catch {
+
+  const existing = await db.user.findUnique({ where: { id } });
+  if (!existing || existing.deletedAt) {
     return NextResponse.json({ error: "用户不存在" }, { status: 404 });
   }
+
+  await db.user.update({
+    where: { id },
+    data: {
+      email: `deleted-${id}-${existing.email}`,
+      deletedAt: new Date(),
+    },
+  });
+  return NextResponse.json({ ok: true });
 }

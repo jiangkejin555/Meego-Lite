@@ -30,11 +30,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // 'c' or 'C' key to create a new task
-      if (e.key === "c" || e.key === "C") {
-        e.preventDefault();
-        openTaskForm(null);
-      }
+      // Temporarily disabled shortcut functionality
+      // if (e.key === "c" || e.key === "C") {
+      //   e.preventDefault();
+      //   openTaskForm(null);
+      // }
     };
 
     window.addEventListener("keydown", handleKeyDown);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAppStore } from "@/store/app-store";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,8 +22,7 @@ import {
 import {
   LayoutDashboard,
   ListTodo,
-  KanbanSquare,
-  UserCheck,
+  FolderKanban,
   Bell,
   Settings,
   Users,
@@ -32,12 +31,14 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getUserInitials } from "@/lib/users";
 import { useQuery } from "@tanstack/react-query";
 import type { ViewKey } from "@/store/app-store";
 
 const NAV: { key: ViewKey; label: string; icon: React.ElementType }[] = [
   { key: "dashboard", label: "仪表盘", icon: LayoutDashboard },
-  { key: "tasks", label: "任务列表", icon: ListTodo },
+  { key: "tasks", label: "我的任务", icon: ListTodo },
+  { key: "projects", label: "我的项目", icon: FolderKanban },
   { key: "notifications", label: "通知中心", icon: Bell },
   { key: "users", label: "成员管理", icon: Users },
   { key: "settings", label: "通知设置", icon: Settings },
@@ -62,6 +63,12 @@ export function Header() {
     queryKey: ["users"],
     queryFn: fetchUsers,
   });
+
+  useEffect(() => {
+    if (currentUser && !users.some((u) => u.id === currentUser.id)) {
+      setCurrentUser(null);
+    }
+  }, [currentUser, setCurrentUser, users]);
 
   const viewLabel = NAV.find((n) => n.key === view)?.label || "";
 
@@ -145,12 +152,7 @@ export function Header() {
               <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="text-[10px]">
-                    {u.name
-                      .split(/\s+/)
-                      .map((s) => s[0])
-                      .slice(0, 2)
-                      .join("")
-                      .toUpperCase()}
+                    {getUserInitials(u)}
                   </AvatarFallback>
                 </Avatar>
                 <span>{u.name}</span>

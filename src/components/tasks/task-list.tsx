@@ -61,6 +61,7 @@ import {
   type TaskStatus,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { formatUserName, getUserInitials } from "@/lib/users";
 import { useToast } from "@/hooks/use-toast";
 
 interface TaskItem {
@@ -72,8 +73,9 @@ interface TaskItem {
   deadline: string | null;
   progress: number;
   tags: string[];
-  creator: { id: string; name: string };
-  assignee: { id: string; name: string } | null;
+  creator: { id: string; name: string; deletedAt?: string | null };
+  assignee: { id: string; name: string; deletedAt?: string | null } | null;
+  project: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -155,6 +157,7 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
     mutationFn: deleteTask,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
       toast({ title: "任务已删除" });
       setDeleteId(null);
@@ -173,15 +176,16 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
       {/* Table */}
       <div className="rounded-lg border overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="table-fixed min-w-[1170px]">
             <TableHeader>
               <TableRow>
-                <TableHead className="min-w-[200px]">任务</TableHead>
+                <TableHead className="w-[240px]">任务</TableHead>
+                <TableHead className="w-[160px]">项目</TableHead>
                 <TableHead className="w-[180px]">标签</TableHead>
-                <TableHead className="w-[90px]">状态</TableHead>
-                <TableHead className="w-[80px]">优先级</TableHead>
-                <TableHead className="w-[100px]">截止时间</TableHead>
-                <TableHead className="w-[120px]">责任人</TableHead>
+                <TableHead className="w-[100px]">状态</TableHead>
+                <TableHead className="w-[100px]">优先级</TableHead>
+                <TableHead className="w-[120px]">截止时间</TableHead>
+                <TableHead className="w-[140px]">责任人</TableHead>
                 <TableHead className="w-[80px]">进度</TableHead>
                 <TableHead className="w-[50px]" />
               </TableRow>
@@ -190,7 +194,7 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={8}>
+                    <TableCell colSpan={9}>
                       <Skeleton className="h-8" />
                     </TableCell>
                   </TableRow>
@@ -198,7 +202,7 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
               ) : tasks.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="text-center py-20"
                   >
                     <div className="flex flex-col items-center justify-center space-y-3">
@@ -219,10 +223,27 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
                       className="cursor-pointer hover:bg-muted/40"
                       onClick={() => setSelectedTaskId(t.id)}
                     >
-                      <TableCell>
-                        <div className="font-medium text-sm line-clamp-1">
+                      <TableCell className="w-[240px] max-w-[240px]">
+                        <div
+                          className="font-medium text-sm truncate"
+                          title={t.title}
+                        >
                           {t.title}
                         </div>
+                      </TableCell>
+                      <TableCell
+                        className="w-[160px] max-w-[160px]"
+                        title={t.project?.name ?? ""}
+                      >
+                        {t.project ? (
+                          <span className="block w-full truncate text-xs">
+                            {t.project.name}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            —
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell>
                         {t.tags && t.tags.length > 0 ? (
@@ -285,15 +306,12 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
                           <div className="flex items-center gap-1.5">
                             <Avatar className="h-6 w-6">
                               <AvatarFallback className="text-[10px]">
-                                {t.assignee.name
-                                  .split(/\s+/)
-                                  .map((s) => s[0])
-                                  .slice(0, 2)
-                                  .join("")
-                                  .toUpperCase()}
+                                {getUserInitials(t.assignee)}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-xs">{t.assignee.name}</span>
+                            <span className="text-xs">
+                              {formatUserName(t.assignee)}
+                            </span>
                           </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">

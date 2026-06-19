@@ -11,20 +11,26 @@ import {
   Clock,
   ListTodo,
   TrendingUp,
+  FolderKanban,
 } from "lucide-react";
 import {
   TASK_PRIORITY_COLOR,
   TASK_PRIORITY_LABEL,
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
+  PROJECT_STATUS_COLOR,
+  PROJECT_STATUS_LABEL,
+  PROJECT_STATUS_ORDER,
   type TaskPriority,
   type TaskStatus,
+  type ProjectStatus,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
 interface Stats {
   status: Record<TaskStatus, number>;
   priority: Record<TaskPriority, number>;
+  project: Record<ProjectStatus, number> & { total: number };
   total: number;
   overdueCount: number;
   dueSoonCount: number;
@@ -55,6 +61,7 @@ export function Dashboard() {
   const currentUser = useAppStore((s) => s.currentUser);
   const setSelectedTaskId = useAppStore((s) => s.setSelectedTaskId);
   const openTaskForm = useAppStore((s) => s.openTaskForm);
+  const setView = useAppStore((s) => s.setView);
 
   const { data, isLoading } = useQuery({
     queryKey: ["stats", currentUser?.id],
@@ -166,6 +173,54 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Project overview */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <FolderKanban className="h-4 w-4 text-primary" />
+            项目概览
+            <span className="text-muted-foreground font-normal">
+              共 {data.project.total} 个
+            </span>
+          </CardTitle>
+          <button
+            onClick={() => setView("projects")}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            查看全部项目 →
+          </button>
+        </CardHeader>
+        <CardContent>
+          {data.project.total === 0 ? (
+            <EmptyState
+              icon={
+                <FolderKanban className="h-8 w-8 text-muted-foreground/50" />
+              }
+              text="还没有项目，去「我的项目」创建一个吧"
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {PROJECT_STATUS_ORDER.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setView("projects")}
+                  className="rounded-lg border p-3 text-left hover:bg-accent/50 transition-colors"
+                >
+                  <Badge
+                    className={cn("border-0 shadow-none", PROJECT_STATUS_COLOR[s])}
+                  >
+                    {PROJECT_STATUS_LABEL[s]}
+                  </Badge>
+                  <p className="mt-2 text-2xl font-bold tabular-nums">
+                    {data.project[s] || 0}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Upcoming & overdue lists */}
       <div className="grid gap-4 lg:grid-cols-2">

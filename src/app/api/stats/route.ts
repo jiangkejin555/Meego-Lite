@@ -90,6 +90,21 @@ export async function GET(req: NextRequest) {
     take: 5,
   });
 
+  // Project stats
+  const [
+    projectTotal,
+    projectNotStarted,
+    projectInProgress,
+    projectDone,
+    projectPaused,
+  ] = await Promise.all([
+    db.project.count(),
+    db.project.count({ where: { status: "not_started" } }),
+    db.project.count({ where: { status: "in_progress" } }),
+    db.project.count({ where: { status: "done" } }),
+    db.project.count({ where: { status: "paused" } }),
+  ]);
+
   return NextResponse.json({
     status: {
       todo: todoCount,
@@ -103,6 +118,13 @@ export async function GET(req: NextRequest) {
       p1: p1Count,
       p2: p2Count,
       p3: p3Count,
+    },
+    project: {
+      total: projectTotal,
+      not_started: projectNotStarted,
+      in_progress: projectInProgress,
+      done: projectDone,
+      paused: projectPaused,
     },
     total,
     overdueCount,

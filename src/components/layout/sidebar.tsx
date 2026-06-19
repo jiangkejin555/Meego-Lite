@@ -3,8 +3,7 @@
 import {
   LayoutDashboard,
   ListTodo,
-  KanbanSquare,
-  UserCheck,
+  FolderKanban,
   Bell,
   Settings,
   Users,
@@ -17,7 +16,8 @@ import { useQuery } from "@tanstack/react-query";
 
 const NAV: { key: ViewKey; label: string; icon: React.ElementType }[] = [
   { key: "dashboard", label: "仪表盘", icon: LayoutDashboard },
-  { key: "tasks", label: "任务列表", icon: ListTodo },
+  { key: "tasks", label: "我的任务", icon: ListTodo },
+  { key: "projects", label: "我的项目", icon: FolderKanban },
   { key: "notifications", label: "通知中心", icon: Bell },
   { key: "users", label: "成员管理", icon: Users },
   { key: "settings", label: "通知设置", icon: Settings },

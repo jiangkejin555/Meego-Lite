@@ -31,6 +31,7 @@ interface TaskItem {
   tags: string[];
   creator: { id: string; name: string };
   assignee: { id: string; name: string } | null;
+  project: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +65,13 @@ async function fetchTags() {
   return data.tags as string[];
 }
 
+async function fetchProjectOptions() {
+  const res = await fetch("/api/projects");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.projects as Array<{ id: string; name: string }>;
+}
+
 export function TasksPage({ mine = false }: { mine?: boolean }) {
   const filter = useAppStore((s) => s.filter);
   const setFilter = useAppStore((s) => s.setFilter);
@@ -79,6 +87,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
       priority: filter.priority,
       assigneeId: filter.assigneeId,
       creatorId: filter.creatorId,
+      projectId: filter.projectId,
     }),
     [filter]
   );
@@ -97,6 +106,11 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
   const { data: tags = [] } = useQuery({
     queryKey: ["tags"],
     queryFn: fetchTags,
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ["project-options"],
+    queryFn: fetchProjectOptions,
   });
 
   return (
@@ -194,11 +208,35 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
             </SelectContent>
           </Select>
 
+          <Select
+            value={filter.projectId}
+            onValueChange={(v) => setFilter({ projectId: v })}
+          >
+            <SelectTrigger className="h-9 w-[150px] bg-card shadow-sm border-dashed">
+              <div className="flex min-w-0 items-center text-xs">
+                <span className="mr-1.5 shrink-0 text-muted-foreground">项目:</span>
+                <SelectValue placeholder="全部" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="w-[180px]">
+              <SelectItem value="all">全部</SelectItem>
+              <SelectItem value="none">暂不关联</SelectItem>
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id} title={p.name}>
+                  <span className="block max-w-[130px] truncate">
+                    {p.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           {(filter.search ||
             filter.tag !== "all" ||
             filter.status !== "all" ||
             filter.priority !== "all" ||
-            filter.assigneeId !== "all") && (
+            filter.assigneeId !== "all" ||
+            filter.projectId !== "all") && (
             <Button
               variant="ghost"
               size="sm"

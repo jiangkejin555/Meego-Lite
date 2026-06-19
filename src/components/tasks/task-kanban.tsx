@@ -32,6 +32,7 @@ import {
   type TaskStatus,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { formatUserName, getUserInitials } from "@/lib/users";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
@@ -44,8 +45,8 @@ interface TaskItem {
   deadline: string | null;
   progress: number;
   tags: string[];
-  creator: { id: string; name: string };
-  assignee: { id: string; name: string } | null;
+  creator: { id: string; name: string; deletedAt?: string | null };
+  assignee: { id: string; name: string; deletedAt?: string | null } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -154,16 +155,11 @@ function KanbanCard({
           <div className="flex items-center gap-1.5">
             <Avatar className="h-5 w-5">
               <AvatarFallback className="text-[9px]">
-                {task.assignee.name
-                  .split(/\s+/)
-                  .map((s) => s[0])
-                  .slice(0, 2)
-                  .join("")
-                  .toUpperCase()}
+                {getUserInitials(task.assignee)}
               </AvatarFallback>
             </Avatar>
             <span className="text-[11px] text-muted-foreground">
-              {task.assignee.name}
+              {formatUserName(task.assignee)}
             </span>
           </div>
         ) : (

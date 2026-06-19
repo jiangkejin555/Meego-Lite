@@ -40,6 +40,7 @@ import {
   type TaskStatus,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { formatUserName, getUserInitials } from "@/lib/users";
 import { useToast } from "@/hooks/use-toast";
 
 interface TaskDetail {
@@ -53,15 +54,16 @@ interface TaskDetail {
   tags: string[];
   estimatedHours: number | null;
   actualHours: number | null;
-  creator: { id: string; name: string; email: string };
-  assignee: { id: string; name: string; email: string } | null;
+  creator: { id: string; name: string; email: string; deletedAt?: string | null };
+  assignee: { id: string; name: string; email: string; deletedAt?: string | null } | null;
+  project: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
   comments: Array<{
     id: string;
     content: string;
     createdAt: string;
-    user: { id: string; name: string };
+    user: { id: string; name: string; deletedAt?: string | null };
   }>;
   notifications: Array<{
     id: string;
@@ -247,10 +249,12 @@ export function TaskDetailDrawer() {
                 <div className="flex items-center gap-2">
                   <Avatar className="h-5 w-5">
                     <AvatarFallback className="text-[9px]">
-                      {task.assignee.name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase()}
+                      {getUserInitials(task.assignee)}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="font-medium text-foreground">{task.assignee.name}</span>
+                  <span className="font-medium text-foreground">
+                    {formatUserName(task.assignee)}
+                  </span>
                 </div>
               ) : (
                 <span className="text-muted-foreground">未分配</span>
@@ -261,11 +265,21 @@ export function TaskDetailDrawer() {
               <div className="flex items-center gap-2">
                 <Avatar className="h-5 w-5">
                   <AvatarFallback className="text-[9px]">
-                    {task.creator.name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase()}
+                    {getUserInitials(task.creator)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-foreground">{task.creator.name}</span>
+                <span className="text-foreground">
+                  {formatUserName(task.creator)}
+                </span>
               </div>
+            </MetaRow>
+
+            <MetaRow label="所属项目">
+              {task.project ? (
+                <span className="text-foreground">{task.project.name}</span>
+              ) : (
+                <span className="text-muted-foreground">暂不关联</span>
+              )}
             </MetaRow>
 
             <MetaRow label="截止时间">
@@ -367,11 +381,11 @@ export function TaskDetailDrawer() {
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
                             <AvatarFallback className="text-[10px]">
-                              {c.user.name.split(/\s+/).map((s) => s[0]).slice(0, 2).join("").toUpperCase()}
+                              {getUserInitials(c.user)}
                             </AvatarFallback>
                           </Avatar>
                           <span className="text-sm font-medium text-foreground">
-                            {c.user.name}
+                            {formatUserName(c.user)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">

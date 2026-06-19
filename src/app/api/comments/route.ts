@@ -24,6 +24,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "参数不完整" }, { status: 400 });
   }
   const content = String(body.content).trim();
+  const user = await db.user.findFirst({
+    where: { id: body.userId, deletedAt: null },
+  });
+  if (!user) {
+    return NextResponse.json(
+      { error: "评论人不存在或已删除" },
+      { status: 400 }
+    );
+  }
   const comment = await db.comment.create({
     data: {
       taskId: body.taskId,

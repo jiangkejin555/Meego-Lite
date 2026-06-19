@@ -1,11 +1,13 @@
 "use client";
 
 import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 import type { TaskStatus, TaskPriority } from "@/lib/constants";
 
 export type ViewKey =
   | "dashboard"
   | "tasks"
+  | "projects"
   | "notifications"
   | "settings"
   | "users";
@@ -24,6 +26,7 @@ interface TaskFilter {
   priority: TaskPriority | "all";
   assigneeId: string | "all";
   creatorId: string | "all";
+  projectId: string | "all";
 }
 
 interface AppState {
@@ -58,24 +61,35 @@ const defaultFilter: TaskFilter = {
   priority: "all",
   assigneeId: "all",
   creatorId: "all",
+  projectId: "all",
 };
 
-export const useAppStore = create<AppState>((set) => ({
-  currentUser: null,
-  setCurrentUser: (u) => set({ currentUser: u }),
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      currentUser: null,
+      setCurrentUser: (u) => set({ currentUser: u }),
 
-  view: "dashboard",
-  setView: (v) => set({ view: v }),
+      view: "dashboard",
+      setView: (v) => set({ view: v }),
 
-  filter: defaultFilter,
-  setFilter: (patch) => set((s) => ({ filter: { ...s.filter, ...patch } })),
-  resetFilter: () => set({ filter: defaultFilter }),
+      filter: defaultFilter,
+      setFilter: (patch) => set((s) => ({ filter: { ...s.filter, ...patch } })),
+      resetFilter: () => set({ filter: defaultFilter }),
 
-  selectedTaskId: null,
-  setSelectedTaskId: (id) => set({ selectedTaskId: id }),
+      selectedTaskId: null,
+      setSelectedTaskId: (id) => set({ selectedTaskId: id }),
 
-  taskFormOpen: false,
-  taskFormId: null,
-  openTaskForm: (id = null) => set({ taskFormOpen: true, taskFormId: id }),
-  closeTaskForm: () => set({ taskFormOpen: false, taskFormId: null }),
-}));
+      taskFormOpen: false,
+      taskFormId: null,
+      openTaskForm: (id = null) => set({ taskFormOpen: true, taskFormId: id }),
+      closeTaskForm: () => set({ taskFormOpen: false, taskFormId: null }),
+    }),
+    {
+      name: "meego-lite-storage", // localStorage 里的 key
+      storage: createJSONStorage(() => localStorage),
+      // 只有这些字段会被持久化，避免把 filter, modal状态 也缓存下来
+      partialize: (state) => ({ currentUser: state.currentUser, view: state.view }),
+    }
+  )
+);

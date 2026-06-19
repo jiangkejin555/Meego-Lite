@@ -58,7 +58,17 @@ interface ExistingTask {
   actualHours: number | null;
   creator: { id: string; name: string };
   assigneeId: string | null;
+  projectId: string | null;
 }
+
+interface ProjectOption {
+  id: string;
+  name: string;
+}
+
+// Sentinel value for the "暂不关联" (no project) option, since Radix Select
+// items can't use an empty string value.
+const NO_PROJECT = "__none__";
 
 interface TaskFormValues {
   title: string;
@@ -71,6 +81,7 @@ interface TaskFormValues {
   estimatedHours: string;
   actualHours: string;
   assigneeId: string;
+  projectId: string;
 }
 
 async function fetchUsers() {
@@ -78,6 +89,16 @@ async function fetchUsers() {
   if (!res.ok) return [];
   const data = await res.json();
   return data.users as UserItem[];
+}
+
+async function fetchProjectOptions(): Promise<ProjectOption[]> {
+  const res = await fetch("/api/projects");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.projects as Array<{ id: string; name: string }>).map((p) => ({
+    id: p.id,
+    name: p.name,
+  }));
 }
 
 async function fetchTags() {
@@ -136,6 +157,7 @@ function buildInitialValues(
       estimatedHours: "",
       actualHours: "",
       assigneeId: currentUserId || "",
+      projectId: NO_PROJECT,
     };
   }
   return {
@@ -151,12 +173,13 @@ function buildInitialValues(
     actualHours:
       existing.actualHours != null ? String(existing.actualHours) : "",
     assigneeId: existing.assigneeId || "",
+    projectId: existing.projectId || NO_PROJECT,
   };
 }
 
 // localStorage 草稿：仅用于新建任务，防止弹窗关闭/刷新后丢失已填内容。
 const DRAFT_KEY = "meego:task-draft:new";
-const DRAFT_VERSION = 1;
+const DRAFT_VERSION = 2;
 
 interface StoredDraft {
   v: number;
@@ -176,7 +199,8 @@ function isTaskFormValues(x: unknown): x is TaskFormValues {
     Array.isArray(v.tags) &&
     typeof v.estimatedHours === "string" &&
     typeof v.actualHours === "string" &&
-    typeof v.assigneeId === "string"
+    typeof v.assigneeId === "string" &&
+    typeof v.projectId === "string"
   );
 }
 
@@ -289,11 +313,17 @@ function TaskFormBody({
     queryFn: fetchTags,
   });
 
+  const { data: projectOptions = [] } = useQuery({
+    queryKey: ["project-options"],
+    queryFn: fetchProjectOptions,
+  });
+
   const createMutation = useMutation({
     mutationFn: createTask,
     onSuccess: () => {
       clearDraft();
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
       toast({ title: "任务创建成功" });
       onClose();
@@ -313,6 +343,7 @@ function TaskFormBody({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["task", taskId] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
       toast({ title: "任务已更新" });
       onClose();
@@ -354,6 +385,7 @@ function TaskFormBody({
       estimatedHours: form.estimatedHours ? Number(form.estimatedHours) : null,
       actualHours: form.actualHours ? Number(form.actualHours) : null,
       assigneeId: form.assigneeId || null,
+      projectId: form.projectId === NO_PROJECT ? null : form.projectId,
     };
 
     if (!isEdit) {
@@ -503,6 +535,28 @@ function TaskFormBody({
                   {users.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
                       {u.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>关联项目</Label>
+              <Select
+                value={form.projectId}
+                onValueChange={(v) => setForm({ ...form, projectId: v })}
+              >
+                <SelectTrigger className="w-full min-w-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[var(--radix-select-trigger-width)]">
+                  <SelectItem value={NO_PROJECT}>暂不关联</SelectItem>
+                  {projectOptions.map((p) => (
+                    <SelectItem key={p.id} value={p.id} title={p.name}>
+                      <span className="block max-w-[calc(var(--radix-select-trigger-width)-3rem)] truncate">
+                        {p.name}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

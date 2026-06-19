@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { Dashboard } from "@/components/dashboard/dashboard";
 import { TasksPage } from "@/components/tasks/tasks-page";
+import { ProjectsPage } from "@/components/projects/projects-page";
 import { TaskFormDialog } from "@/components/tasks/task-form";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail";
 import { NotificationCenter } from "@/components/notifications/notification-center";
@@ -102,20 +103,21 @@ export default function Home() {
   }, [currentUser, queryClient]);
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <Header />
         <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">
           <div className="mx-auto max-w-7xl">
             {view === "dashboard" && <Dashboard />}
             {view === "tasks" && <TasksPage />}
+            {view === "projects" && <ProjectsPage />}
             {view === "notifications" && <NotificationCenter />}
             {view === "settings" && <NotificationSettings />}
             {view === "users" && <UserManagement />}
           </div>
         </main>
-        <footer className="mt-auto border-t py-3 px-6 text-xs text-muted-foreground text-center">
+        <footer className="mt-auto shrink-0 border-t py-3 px-6 text-xs text-muted-foreground text-center">
           Meego Lite · 简版需求与任务协作系统 · 通知支持飞书 / 企业微信 / 邮箱
         </footer>
       </div>

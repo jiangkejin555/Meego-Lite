@@ -48,6 +48,11 @@ interface UserItem {
   feishuWebhook?: string | null;
   wecomWebhook?: string | null;
   leadTimeMinutes: number;
+  taskCount: number;
+  taskTitles: string[];
+  createdTaskTitles: string[];
+  assignedTaskTitles: string[];
+  ownedProjectNames: string[];
   createdAt: string;
 }
 
@@ -73,7 +78,10 @@ async function createUser(payload: Record<string, unknown>) {
 
 async function deleteUser(id: string) {
   const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("删除失败");
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || "删除失败");
+  }
 }
 
 export function UserManagement() {
@@ -90,6 +98,7 @@ export function UserManagement() {
     queryKey: ["users"],
     queryFn: fetchUsers,
   });
+  const deleteUserItem = users.find((u) => u.id === deleteId);
 
   const createMutation = useMutation({
     mutationFn: createUser,
@@ -113,6 +122,11 @@ export function UserManagement() {
     mutationFn: deleteUser,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["task"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      queryClient.invalidateQueries({ queryKey: ["project-options"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
       toast({ title: "用户已删除" });
       setDeleteId(null);
     },
@@ -152,6 +166,8 @@ export function UserManagement() {
                 .join("")
                 .toUpperCase();
               const isCurrent = currentUser?.id === u.id;
+              const hasAssociations =
+                u.taskCount > 0 || u.ownedProjectNames.length > 0;
               return (
                 <Card
                   key={u.id}
@@ -191,6 +207,11 @@ export function UserManagement() {
                           size="icon"
                           className="h-7 w-7 text-muted-foreground hover:text-rose-600"
                           onClick={() => setDeleteId(u.id)}
+                          title={
+                            hasAssociations
+                              ? "删除前将展示关联信息，请谨慎确认"
+                              : "删除成员"
+                          }
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -235,6 +256,11 @@ export function UserManagement() {
                     <div className="mt-2 text-[10px] text-muted-foreground">
                       提前 {u.leadTimeMinutes} 分钟提醒
                     </div>
+                    {hasAssociations && (
+                      <div className="mt-2 text-[10px] text-amber-600">
+                        存在关联：任务 {u.taskCount} 个，项目 {u.ownedProjectNames.length} 个
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -301,8 +327,49 @@ export function UserManagement() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>确定删除该成员？</AlertDialogTitle>
-            <AlertDialogDescription>
-              该成员负责的任务需要重新指派，关联的评论和通知记录将保留。
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>
+                  删除成员后，该成员将不再出现在成员列表和人员选择器中；历史任务、项目、评论中仍会保留该成员信息，并显示为“姓名（已删除）”。删除后无法恢复，请谨慎操作。
+                </p>
+                {deleteUserItem &&
+                  (deleteUserItem.taskCount > 0 ||
+                    deleteUserItem.ownedProjectNames.length > 0) && (
+                    <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800">
+                      <p className="font-medium">当前成员存在以下关联：</p>
+                      {deleteUserItem.createdTaskTitles.length > 0 && (
+                        <div>
+                          <div>作为创建人：</div>
+                          <ul className="list-disc pl-5">
+                            {deleteUserItem.createdTaskTitles.map((title) => (
+                              <li key={`created-${title}`}>{title}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {deleteUserItem.assignedTaskTitles.length > 0 && (
+                        <div>
+                          <div>作为负责人：</div>
+                          <ul className="list-disc pl-5">
+                            {deleteUserItem.assignedTaskTitles.map((title) => (
+                              <li key={`assigned-${title}`}>{title}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {deleteUserItem.ownedProjectNames.length > 0 && (
+                        <div>
+                          <div>作为项目负责人：</div>
+                          <ul className="list-disc pl-5">
+                            {deleteUserItem.ownedProjectNames.map((name) => (
+                              <li key={`project-${name}`}>{name}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -312,7 +379,7 @@ export function UserManagement() {
               onClick={() => deleteId && deleteMutation.mutate(deleteId)}
               disabled={deleteMutation.isPending}
             >
-              确认删除
+              {deleteMutation.isPending ? "删除中..." : "我已知晓，确认删除"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,6 +2,8 @@
 
 export type TaskStatus = "todo" | "in_progress" | "paused" | "done" | "closed";
 export type TaskPriority = "p0" | "p1" | "p2" | "p3";
+export type ProjectStatus = "not_started" | "in_progress" | "done" | "paused";
+export type ProjectPriority = "p0" | "p1" | "p2" | "p3";
 export type NotificationChannel = "in_app" | "email" | "feishu" | "wecom";
 export type NotificationType =
   | "deadline_reminder"
@@ -67,6 +69,42 @@ export const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
 };
 
 export const TASK_PRIORITY_COLOR: Record<TaskPriority, string> = {
+  p0: "bg-rose-500 text-white",
+  p1: "bg-orange-500 text-white",
+  p2: "bg-amber-400 text-amber-950",
+  p3: "bg-slate-300 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+};
+
+// ===== Project constants =====
+export const PROJECT_STATUS_LABEL: Record<ProjectStatus, string> = {
+  not_started: "未开始",
+  in_progress: "进行中",
+  done: "已完成",
+  paused: "已暂停",
+};
+
+export const PROJECT_STATUS_COLOR: Record<ProjectStatus, string> = {
+  not_started: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  in_progress: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  done: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  paused: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+};
+
+export const PROJECT_STATUS_ORDER: ProjectStatus[] = [
+  "not_started",
+  "in_progress",
+  "done",
+  "paused",
+];
+
+export const PROJECT_PRIORITY_LABEL: Record<ProjectPriority, string> = {
+  p0: "P0 紧急",
+  p1: "P1 高",
+  p2: "P2 中",
+  p3: "P3 低",
+};
+
+export const PROJECT_PRIORITY_COLOR: Record<ProjectPriority, string> = {
   p0: "bg-rose-500 text-white",
   p1: "bg-orange-500 text-white",
   p2: "bg-amber-400 text-amber-950",

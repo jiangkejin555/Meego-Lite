@@ -28,10 +28,26 @@ model User {
   // Relations
   createdTasks    Task[]   @relation("TaskCreator")
   assignedTasks   Task[]   @relation("TaskAssignee")
+  ownedProjects   Project[] @relation("ProjectOwners")
   comments        Comment[]
   notifications   Notification[]
+  deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  // status: not_started | in_progress | done | paused
+  status      String   @default("not_started")
+  // priority: p0 | p1 | p2 | p3
+  priority    String   @default("p2")
+  owners      User[]   @relation("ProjectOwners")
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Task {
@@ -52,8 +68,10 @@ model Task {
   // Relations
   creatorId      String
   assigneeId     String?
+  projectId      String?
   creator        User         @relation("TaskCreator", fields: [creatorId], references: [id])
   assignee       User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  project        Project?     @relation(fields: [projectId], references: [id])
   comments       Comment[]
   notifications  Notification[]
   createdAt      DateTime     @default(now())

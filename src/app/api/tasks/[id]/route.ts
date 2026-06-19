@@ -19,6 +19,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
     include: {
       creator: true,
       assignee: true,
+      project: { select: { id: true, name: true } },
       comments: {
         include: { user: true },
         orderBy: { createdAt: "asc" },
@@ -60,8 +61,22 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
   if (body.estimatedHours !== undefined)
     data.estimatedHours = body.estimatedHours;
   if (body.actualHours !== undefined) data.actualHours = body.actualHours;
-  if (body.assigneeId !== undefined)
+  if (body.assigneeId !== undefined) {
+    if (body.assigneeId && body.assigneeId !== existing.assigneeId) {
+      const assignee = await db.user.findFirst({
+        where: { id: body.assigneeId, deletedAt: null },
+      });
+      if (!assignee) {
+        return NextResponse.json(
+          { error: "责任人不存在或已删除" },
+          { status: 400 }
+        );
+      }
+    }
     data.assigneeId = body.assigneeId || null;
+  }
+  if (body.projectId !== undefined)
+    data.projectId = body.projectId || null;
 
   const task = await db.task.update({
     where: { id },
@@ -77,10 +92,16 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 // DELETE /api/tasks/[id]
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
   const { id } = await ctx.params;
-  try {
-    await db.task.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
-  } catch {
+  const existing = await db.task.findUnique({ where: { id } });
+  if (!existing) {
     return NextResponse.json({ error: "任务不存在" }, { status: 404 });
   }
+
+  await db.$transaction([
+    db.comment.deleteMany({ where: { taskId: id } }),
+    db.notification.deleteMany({ where: { taskId: id } }),
+    db.task.delete({ where: { id } }),
+  ]);
+
+  return NextResponse.json({ ok: true });
 }

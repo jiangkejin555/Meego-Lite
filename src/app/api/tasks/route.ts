@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const priority = url.searchParams.get("priority") || undefined;
   const assigneeId = url.searchParams.get("assigneeId") || undefined;
   const creatorId = url.searchParams.get("creatorId") || undefined;
+  const projectId = url.searchParams.get("projectId") || undefined;
   const search = url.searchParams.get("search") || undefined;
   const tag = url.searchParams.get("tag") || undefined;
   const mine = url.searchParams.get("mine"); // current user id
@@ -24,6 +25,9 @@ export async function GET(req: NextRequest) {
   if (priority && priority !== "all") where.priority = priority;
   if (assigneeId && assigneeId !== "all") where.assigneeId = assigneeId;
   if (creatorId && creatorId !== "all") where.creatorId = creatorId;
+  if (projectId && projectId !== "all") {
+    where.projectId = projectId === "none" ? null : projectId;
+  }
   if (tag && tag !== "all") where.tags = { contains: JSON.stringify(tag) };
   if (mine) {
     where.OR = [{ assigneeId: mine }, { creatorId: mine }];
@@ -40,6 +44,7 @@ export async function GET(req: NextRequest) {
     include: {
       creator: true,
       assignee: true,
+      project: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -70,6 +75,26 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+  const creator = await db.user.findFirst({
+    where: { id: body.creatorId, deletedAt: null },
+  });
+  if (!creator) {
+    return NextResponse.json(
+      { error: "创建人不存在或已删除" },
+      { status: 400 }
+    );
+  }
+  if (body.assigneeId) {
+    const assignee = await db.user.findFirst({
+      where: { id: body.assigneeId, deletedAt: null },
+    });
+    if (!assignee) {
+      return NextResponse.json(
+        { error: "责任人不存在或已删除" },
+        { status: 400 }
+      );
+    }
+  }
 
   const task = await db.task.create({
     data: {
@@ -86,6 +111,7 @@ export async function POST(req: NextRequest) {
         typeof body.actualHours === "number" ? body.actualHours : null,
       creatorId: body.creatorId,
       assigneeId: body.assigneeId || null,
+      projectId: body.projectId || null,
     },
     include: { creator: true, assignee: true },
   });
