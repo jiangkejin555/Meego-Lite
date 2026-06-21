@@ -1,0 +1,85 @@
+import { db } from "@/lib/db";
+
+type RawSqlDb = {
+  $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
+  $executeRawUnsafe(query: string, ...values: unknown[]): Promise<unknown>;
+};
+
+type TableColumn = { name: string };
+
+const USER_DELETED_AT_COLUMN = "deletedAt";
+const TASK_PROJECT_ID_COLUMN = "projectId";
+
+const globalForMigrations = globalThis as unknown as {
+  meegoLiteSchemaMigrationPromise?: Promise<void>;
+};
+
+export async function ensureUserDeletedAtColumn(client: RawSqlDb) {
+  const columns = await client.$queryRawUnsafe<TableColumn[]>(
+    "PRAGMA table_info('User')"
+  );
+
+  if (columns.some((column) => column.name === USER_DELETED_AT_COLUMN)) {
+    return;
+  }
+
+  await client.$executeRawUnsafe(
+    'ALTER TABLE "User" ADD COLUMN "deletedAt" DATETIME'
+  );
+}
+
+async function tableExists(client: RawSqlDb, tableName: string) {
+  const tables = await client.$queryRawUnsafe<TableColumn[]>(
+    `SELECT name FROM sqlite_master WHERE type = 'table' AND name = '${tableName}'`
+  );
+
+  return tables.length > 0;
+}
+
+export async function ensureProjectSchema(client: RawSqlDb) {
+  if (!(await tableExists(client, "Project"))) {
+    await client.$executeRawUnsafe(`CREATE TABLE "Project" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'not_started',
+    "priority" TEXT NOT NULL DEFAULT 'p2',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+)`);
+  }
+
+  const taskColumns = await client.$queryRawUnsafe<TableColumn[]>(
+    "PRAGMA table_info('Task')"
+  );
+  if (!taskColumns.some((column) => column.name === TASK_PROJECT_ID_COLUMN)) {
+    await client.$executeRawUnsafe(
+      'ALTER TABLE "Task" ADD COLUMN "projectId" TEXT'
+    );
+  }
+
+  if (!(await tableExists(client, "_ProjectOwners"))) {
+    await client.$executeRawUnsafe(`CREATE TABLE "_ProjectOwners" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+    CONSTRAINT "_ProjectOwners_A_fkey" FOREIGN KEY ("A") REFERENCES "Project" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "_ProjectOwners_B_fkey" FOREIGN KEY ("B") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+)`);
+  }
+
+  await client.$executeRawUnsafe(
+    'CREATE UNIQUE INDEX IF NOT EXISTS "_ProjectOwners_AB_unique" ON "_ProjectOwners"("A", "B")'
+  );
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "_ProjectOwners_B_index" ON "_ProjectOwners"("B")'
+  );
+}
+
+export function ensureDatabaseSchema() {
+  globalForMigrations.meegoLiteSchemaMigrationPromise ??= (async () => {
+    await ensureUserDeletedAtColumn(db);
+    await ensureProjectSchema(db);
+  })();
+
+  return globalForMigrations.meegoLiteSchemaMigrationPromise;
+}

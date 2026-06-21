@@ -6,6 +6,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "@/lib/constants";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -13,6 +14,8 @@ interface RouteContext {
 
 // GET /api/tasks/[id]
 export async function GET(_req: NextRequest, ctx: RouteContext) {
+  await ensureDatabaseSchema();
+
   const { id } = await ctx.params;
   const task = await db.task.findUnique({
     where: { id },
@@ -40,6 +43,8 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
 
 // PUT /api/tasks/[id]
 export async function PUT(req: NextRequest, ctx: RouteContext) {
+  await ensureDatabaseSchema();
+
   const { id } = await ctx.params;
   const body = await req.json();
 
@@ -91,6 +96,8 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 
 // DELETE /api/tasks/[id]
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
+  await ensureDatabaseSchema();
+
   const { id } = await ctx.params;
   const existing = await db.task.findUnique({ where: { id } });
   if (!existing) {

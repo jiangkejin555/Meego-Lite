@@ -51,6 +51,20 @@ async function fetchUsers() {
   return data.users as Array<{ id: string; name: string; email: string }>;
 }
 
+type UserIdentity = { id: string };
+
+export function shouldClearCurrentUser(
+  currentUser: UserIdentity | null,
+  users: UserIdentity[],
+  usersLoaded: boolean
+) {
+  return (
+    !!currentUser &&
+    usersLoaded &&
+    !users.some((user) => user.id === currentUser.id)
+  );
+}
+
 export function Header() {
   const currentUser = useAppStore((s) => s.currentUser);
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
@@ -59,16 +73,16 @@ export function Header() {
   const view = useAppStore((s) => s.view);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const { data: users = [] } = useQuery({
+  const { data: users = [], isFetched: usersFetched } = useQuery({
     queryKey: ["users"],
     queryFn: fetchUsers,
   });
 
   useEffect(() => {
-    if (currentUser && !users.some((u) => u.id === currentUser.id)) {
+    if (shouldClearCurrentUser(currentUser, users, usersFetched)) {
       setCurrentUser(null);
     }
-  }, [currentUser, setCurrentUser, users]);
+  }, [currentUser, setCurrentUser, users, usersFetched]);
 
   const viewLabel = NAV.find((n) => n.key === view)?.label || "";
 

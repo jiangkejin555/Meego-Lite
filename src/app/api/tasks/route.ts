@@ -7,9 +7,12 @@ import {
   type TaskStatus,
 } from "@/lib/constants";
 import { sendNotification } from "@/lib/notification";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 // GET /api/tasks — list with optional filters
 export async function GET(req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const url = req.nextUrl;
   const status = url.searchParams.get("status") || undefined;
   const priority = url.searchParams.get("priority") || undefined;
@@ -60,6 +63,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/tasks — create a new task
 export async function POST(req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const body = await req.json();
 
   // Basic validation

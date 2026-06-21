@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 // POST /api/seed  — seed initial demo data (idempotent)
 export async function POST() {
+  await ensureDatabaseSchema();
+
   // If users already exist, do nothing
   const existingUsers = await db.user.count();
   if (existingUsers > 0) {

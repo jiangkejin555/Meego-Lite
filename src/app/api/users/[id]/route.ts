@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -7,6 +8,8 @@ interface RouteContext {
 
 // PUT /api/users/[id] — update notification settings etc.
 export async function PUT(req: NextRequest, ctx: RouteContext) {
+  await ensureDatabaseSchema();
+
   const { id } = await ctx.params;
   const body = await req.json();
 
@@ -52,6 +55,8 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 
 // DELETE /api/users/[id]
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
+  await ensureDatabaseSchema();
+
   const { id } = await ctx.params;
 
   const existing = await db.user.findUnique({ where: { id } });

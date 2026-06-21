@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 // GET /api/users
 export async function GET() {
+  await ensureDatabaseSchema();
+
   const users = await db.user.findMany({
     where: { deletedAt: null },
     orderBy: { createdAt: "asc" },
@@ -47,6 +50,8 @@ export async function GET() {
 
 // POST /api/users
 export async function POST(req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const body = await req.json();
   if (!body.name || !body.email) {
     return NextResponse.json(

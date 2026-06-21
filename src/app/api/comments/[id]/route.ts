@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 // PATCH /api/comments/[id]  body: { userId, content }
 // 仅评论作者本人可修改
@@ -7,6 +8,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await ensureDatabaseSchema();
+
   const { id } = await params;
   const body = await req.json();
   if (!body.userId || !body.content?.trim()) {
@@ -33,6 +36,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  await ensureDatabaseSchema();
+
   const { id } = await params;
   const userId = req.nextUrl.searchParams.get("userId");
   if (!userId) {

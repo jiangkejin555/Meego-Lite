@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendNotification } from "@/lib/notification";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 // GET /api/comments?taskId=...
 export async function GET(req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const url = req.nextUrl;
   const taskId = url.searchParams.get("taskId");
   if (!taskId) {
@@ -19,6 +22,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/comments  body: { taskId, userId, content }
 export async function POST(req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const body = await req.json();
   if (!body.taskId || !body.userId || !body.content?.trim()) {
     return NextResponse.json({ error: "参数不完整" }, { status: 400 });

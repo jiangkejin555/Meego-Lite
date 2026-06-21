@@ -2,9 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { ProjectPriority, ProjectStatus } from "@/lib/constants";
 import { PROJECT_NAME_MAX_LENGTH } from "@/lib/project-utils";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 // GET /api/projects — list with optional filters
 export async function GET(req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const url = req.nextUrl;
   const status = url.searchParams.get("status") || undefined;
   const search = url.searchParams.get("search") || undefined;
@@ -32,6 +35,8 @@ export async function GET(req: NextRequest) {
 
 // POST /api/projects — create a new project
 export async function POST(req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const body = await req.json();
 
   if (!body.name || typeof body.name !== "string" || !body.name.trim()) {

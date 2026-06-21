@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendNotification } from "@/lib/notification";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 // POST /api/notifications/check-deadlines
 // Scans all tasks with deadlines and sends reminders based on user's leadTimeMinutes.
 // Idempotent within a small window — skips if a recent in_app reminder for the
 // same task+user+type already exists.
 export async function POST(_req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const now = new Date();
   const sent: { taskId: string; userId: string; channels: string[] }[] = [];
   const errors: { taskId: string; error: string }[] = [];

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import type { ProjectPriority, ProjectStatus } from "@/lib/constants";
 import { PROJECT_NAME_MAX_LENGTH } from "@/lib/project-utils";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -9,6 +10,8 @@ interface RouteContext {
 
 // GET /api/projects/[id]
 export async function GET(_req: NextRequest, ctx: RouteContext) {
+  await ensureDatabaseSchema();
+
   const { id } = await ctx.params;
   const project = await db.project.findUnique({
     where: { id },
@@ -25,6 +28,8 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
 
 // PUT /api/projects/[id]
 export async function PUT(req: NextRequest, ctx: RouteContext) {
+  await ensureDatabaseSchema();
+
   const { id } = await ctx.params;
   const body = await req.json();
 
@@ -98,6 +103,8 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 
 // DELETE /api/projects/[id]
 export async function DELETE(_req: NextRequest, ctx: RouteContext) {
+  await ensureDatabaseSchema();
+
   const { id } = await ctx.params;
   try {
     // Detach tasks from this project before deleting

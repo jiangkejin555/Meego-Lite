@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
 
 // GET /api/stats?userId=...  (userId optional — if provided, returns personal stats too)
 export async function GET(req: NextRequest) {
+  await ensureDatabaseSchema();
+
   const url = req.nextUrl;
   const userId = url.searchParams.get("userId") || undefined;
 
