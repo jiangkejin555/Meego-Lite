@@ -220,7 +220,7 @@ function SettingsForm({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <MessageCircle className="h-4 w-4 text-emerald-600" />
-              <Label className="cursor-pointer">企业微信机器人通知</Label>
+              <Label className="cursor-pointer">企业微信通知</Label>
             </div>
             <Switch
               checked={form.notifyWeCom}
@@ -228,11 +228,10 @@ function SettingsForm({
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            在企业微信群中添加「群机器人」，复制 webhook
-            地址粘贴到下方。通知会以文本形式推送到对应群。
+            推荐使用企业微信自建应用向个人发送通知；如未配置应用消息，仍可兼容群机器人 webhook。
           </p>
           <div className="space-y-1.5">
-            <Label className="text-xs">企业微信 Webhook URL</Label>
+            <Label className="text-xs">企业微信 Webhook URL（可选，群机器人兼容）</Label>
             <Input
               placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxxxx"
               value={form.wecomWebhook || ""}
@@ -242,9 +241,9 @@ function SettingsForm({
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">企业微信用户 ID（可选）</Label>
+            <Label className="text-xs">企业微信用户 ID（个人消息）</Label>
             <Input
-              placeholder="userid"
+              placeholder="例如 zhangsan"
               value={form.wecomId || ""}
               onChange={(e) => setForm({ ...form, wecomId: e.target.value })}
             />
@@ -255,7 +254,7 @@ function SettingsForm({
             rel="noreferrer"
             className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
           >
-            如何获取企业微信群机器人 webhook？
+            企业微信应用消息 / 群机器人配置文档
             <ExternalLink className="h-3 w-3" />
           </a>
         </div>
@@ -265,7 +264,7 @@ function SettingsForm({
         <div className="flex items-center gap-2">
           <Webhook className="h-4 w-4 text-muted-foreground" />
           <p className="text-xs text-muted-foreground">
-            个人微信群机器人暂无公开 API，建议使用企业微信群机器人。
+            个人微信暂无公开机器人 API；企业微信个人通知需由管理员配置自建应用，并填写用户 ID。
           </p>
         </div>
 

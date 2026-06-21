@@ -19,17 +19,16 @@ rm -rf @parcel/watcher-linux-* @parcel/watcher-win32-*
 rm -rf @parcel/watcher-darwin-x64 @parcel/watcher-android-* @parcel/watcher-freebsd-*
 
 # 3. 清理 Prisma 多余平台引擎
+# 保留 macOS / Windows 桌面 App 运行所需的 Prisma query engine。
+# 注意：Windows 安装包需要 query_engine-windows.dll.node；不能在瘦身时删除。
 find @prisma -type f \( \
   -name '*query_engine-debian*' -o \
   -name '*query_engine-rhel*' -o \
   -name '*query_engine-linux*' -o \
-  -name '*query_engine-windows*' -o \
-  -name '*query_engine-darwin-x64*' -o \
   -name '*libquery_engine-debian*' -o \
   -name '*libquery_engine-rhel*' -o \
   -name '*libquery_engine-linux*' -o \
-  -name '*query-engine-windows*' -o \
-  -name '*query-engine-darwin-x64*' \
+  -name '*query-engine-linux*' \
 \) -delete 2>/dev/null || true
 
 # 4. 通用瘦身：类型声明、source map、文档、license、changelog

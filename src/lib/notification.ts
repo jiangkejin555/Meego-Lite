@@ -19,6 +19,18 @@ interface SendResult {
   error?: string;
 }
 
+interface WeComAppConfig {
+  corpId: string;
+  agentId: string;
+  appSecret: string;
+}
+
+interface WeComPreference {
+  notifyWeCom: boolean;
+  wecomId?: string | null;
+  wecomWebhook?: string | null;
+}
+
 /**
  * Send a notification across multiple channels based on user preferences.
  * Always creates an in_app notification record. For email/feishu/wecom, it
@@ -48,7 +60,7 @@ export async function sendNotification({
     const list: NotificationChannel[] = ["in_app"];
     if (user.notifyEmail) list.push("email");
     if (user.notifyFeishu && user.feishuWebhook) list.push("feishu");
-    if (user.notifyWeCom && user.wecomWebhook) list.push("wecom");
+    if (canSendWeComNotification(user)) list.push("wecom");
     return list;
   })();
 
@@ -88,9 +100,24 @@ export async function sendNotification({
           }
         }
       } else if (channel === "wecom") {
-        if (!user.wecomWebhook) {
+        const weComAppConfig = getWeComAppConfig();
+        if (weComAppConfig && user.wecomId) {
+          const res = await sendWeComAppText(
+            weComAppConfig,
+            user.wecomId,
+            title,
+            content
+          );
+          if (res.ok) {
+            status = "sent";
+            sentAt = new Date();
+          } else {
+            status = "failed";
+            error = res.error || "企业微信应用消息发送失败";
+          }
+        } else if (!user.wecomWebhook) {
           status = "failed";
-          error = "未配置企业微信 webhook";
+          error = "未配置企业微信用户 ID 或群机器人 webhook";
         } else {
           const res = await sendWeComText(user.wecomWebhook, title, content);
           if (res.ok) {
@@ -190,6 +217,21 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+export function getWeComAppConfig(): WeComAppConfig | null {
+  const corpId = process.env.WECOM_CORP_ID;
+  const agentId = process.env.WECOM_AGENT_ID;
+  const appSecret = process.env.WECOM_APP_SECRET;
+
+  if (!corpId || !agentId || !appSecret) return null;
+  return { corpId, agentId, appSecret };
+}
+
+export function canSendWeComNotification(user: WeComPreference): boolean {
+  if (!user.notifyWeCom) return false;
+  if (getWeComAppConfig() && user.wecomId) return true;
+  return Boolean(user.wecomWebhook);
+}
+
 /**
  * Send a Feishu (Lark) interactive card message via bot webhook.
  * Webhook format: https://open.feishu.cn/open-apis/bot/v2/hook/<token>
@@ -263,6 +305,68 @@ async function sendWeComText(
     if (typeof data.errcode === "number" && data.errcode !== 0) {
       return { ok: false, error: data.errmsg || `errcode ${data.errcode}` };
     }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+export async function sendWeComAppText(
+  config: WeComAppConfig,
+  toUser: string,
+  title: string,
+  content: string
+): Promise<{ ok: boolean; error?: string }> {
+  const agentId = Number(config.agentId);
+  if (!Number.isInteger(agentId)) {
+    return { ok: false, error: "企业微信 AgentId 必须是数字" };
+  }
+
+  try {
+    const tokenUrl = new URL("https://qyapi.weixin.qq.com/cgi-bin/gettoken");
+    tokenUrl.searchParams.set("corpid", config.corpId);
+    tokenUrl.searchParams.set("corpsecret", config.appSecret);
+
+    const tokenRes = await fetch(tokenUrl);
+    if (!tokenRes.ok) {
+      return { ok: false, error: `获取企业微信 access_token 失败：HTTP ${tokenRes.status}` };
+    }
+
+    const tokenData = await tokenRes.json().catch(() => ({}));
+    if (typeof tokenData.errcode === "number" && tokenData.errcode !== 0) {
+      return { ok: false, error: tokenData.errmsg || `errcode ${tokenData.errcode}` };
+    }
+    if (!tokenData.access_token) {
+      return { ok: false, error: "企业微信 access_token 为空" };
+    }
+
+    const sendUrl = new URL("https://qyapi.weixin.qq.com/cgi-bin/message/send");
+    sendUrl.searchParams.set("access_token", tokenData.access_token);
+
+    const body = {
+      touser: toUser,
+      msgtype: "text",
+      agentid: agentId,
+      text: {
+        content: `${title}\n\n${content}`,
+      },
+      safe: 0,
+    };
+
+    const sendRes = await fetch(sendUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!sendRes.ok) {
+      return { ok: false, error: `企业微信应用消息发送失败：HTTP ${sendRes.status}` };
+    }
+
+    const sendData = await sendRes.json().catch(() => ({}));
+    if (typeof sendData.errcode === "number" && sendData.errcode !== 0) {
+      return { ok: false, error: sendData.errmsg || `errcode ${sendData.errcode}` };
+    }
+
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
