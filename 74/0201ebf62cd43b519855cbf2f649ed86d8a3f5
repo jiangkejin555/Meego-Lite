@@ -1,0 +1,207 @@
+.trae/specs/add-auth-multiuser/spec.md
+  s_689a09c9dbc374::t_283c4db59bda8e 15
+.trae/specs/add-auth-multiuser/tasks.md
+  s_689a09c9dbc374::t_914da955d2c65f 22-23
+  s_689a09c9dbc374::t_066d1fa628e718 1-21,24-67
+src/components/tasks/tasks-page.tsx
+  s_fb430f968cf7ee::t_f71b082dcfab5e 86
+  s_fb430f968cf7ee::t_7c659457d18f45 272-318,326-332
+  s_fb430f968cf7ee::t_0db7b3e613beac 17-19
+.trae/specs/add-kanban-grouping-views/checklist.md
+  s_fb430f968cf7ee::t_9bae9ce4844031 1-2
+  s_fb430f968cf7ee::t_16f2d7190815d6 3-14
+.trae/specs/add-task-table-sorting/checklist.md
+  s_7ac40d4ed12c2e::t_3a9023f0c97c9f 1-12
+.trae/specs/add-kanban-grouping-views/tasks.md
+  s_fb430f968cf7ee::t_42ea0f7377a051 5-9,11-14
+  s_fb430f968cf7ee::t_3d638029f311d7 21
+  s_fb430f968cf7ee::t_b4443dc7c6c807 3
+  s_fb430f968cf7ee::t_664e1cbb666c0a 16-19
+  s_fb430f968cf7ee::t_7741d9055cb7b4 1-2,4,10,15,20,22-27
+.trae/specs/add-task-table-sorting/tasks.md
+  s_7ac40d4ed12c2e::t_6090f8065d8af4 1-2,6,12,16-19
+  s_7ac40d4ed12c2e::t_a32555a37c58ae 7-11
+  s_7ac40d4ed12c2e::t_fd64784db63733 13,15
+  s_7ac40d4ed12c2e::t_5e2b0ce0e04d33 3-5
+  s_7ac40d4ed12c2e::t_8be16b063735e6 14
+.trae/specs/add-auth-multiuser/checklist.md
+  s_689a09c9dbc374::t_9d54a3871596f0 1-21,23-50
+  s_689a09c9dbc374::t_832c2b63ee92a1 22
+src/components/tasks/task-list.tsx
+  s_22fa8ceb1fba3c::t_de8994d99f2d93 655-660
+  s_7ac40d4ed12c2e::t_d364c6553126ce 43-45,50,54
+  s_7ac40d4ed12c2e::t_5b0affea827712 176 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a391d1b0239e74be2ca5d0c","tool_type":"agent","tool_id":"Edit","line_ranges":[{"Single":176}]}]}
+  s_7ac40d4ed12c2e::t_3db3abf246283d 227-228 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a391d370239e74be2ca5d12","tool_type":"agent","tool_id":"Edit","line_ranges":[{"Range":[227,228]}]}]}
+  s_7ac40d4ed12c2e::t_7ac1dce9678bd4 179-192,197-198,206-209
+  s_7ac40d4ed12c2e::t_02d35b4f1e7209 347-380,390,392,394-396
+  s_7ac40d4ed12c2e::t_63320aa9eff580 177-178,193-194,199-205,210-214
+  s_7ac40d4ed12c2e::t_5e27329a737dba 195-196 gitai:{"mixed_line_ranges":[],"operations":[{"operation_id":"6a391d2b0239e74be2ca5d0f","tool_type":"agent","tool_id":"Edit","line_ranges":[{"Range":[195,196]}]}]}
+  s_7ac40d4ed12c2e::t_77488cdf156470 229-247
+  s_7ac40d4ed12c2e::t_bee4aed72a3fa9 424
+src/components/tasks/task-kanban.tsx
+  s_fb430f968cf7ee::t_76b9faa850c658 3-4,26,31,50,55-62,65-75,79,81,85-171,173,175,178,180,190,211-214,220-222,293-295,298-300,303-306,316-332,338,341,343-347,351,353,361-373,379-380,385-389,391-392,394-401,404,407-408,415,428,431,434,436-462,464-465,469-471,477-478,484-491,500,502-505,514,516
+  s_22fa8ceb1fba3c::t_5ff0236bd20d0f 22
+  s_22fa8ceb1fba3c::t_e350f5bb195d3d 242,263-266
+src/components/tasks/task-detail.tsx
+  s_22fa8ceb1fba3c::t_86e4ccd0cfee18 359
+src/components/tasks/task-form.tsx
+  s_22fa8ceb1fba3c::t_5dcb20cf946901 938
+  s_22fa8ceb1fba3c::t_a5341f40ea7fee 37
+  s_22fa8ceb1fba3c::t_56a8b326491417 943,946-947,950-954,956-963
+  s_22fa8ceb1fba3c::t_8ba2af8341e844 18
+  s_22fa8ceb1fba3c::t_ca33e0217849f3 653-657
+  s_22fa8ceb1fba3c::t_9d4b46e778b33e 1030-1046
+src/lib/constants.ts
+  s_7ac40d4ed12c2e::t_a07edaebf7ffcc 64-72
+  s_fb430f968cf7ee::t_64e342906c1bc5 80-100
+  s_7ac40d4ed12c2e::t_0eceff98c39b17 108-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "740201ebf62cd43b519855cbf2f649ed86d8a3f5",
+  "prompts": {},
+  "sessions": {
+    "s_22fa8ceb1fba3c": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a38fe530239e74be2ca5985",
+        "model": "openrouter-2o__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    },
+    "s_689a09c9dbc374": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a3911890239e74be2ca5a88",
+        "model": "openrouter-3o__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    },
+    "s_7ac40d4ed12c2e": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a3913e80239e74be2ca5ab5",
+        "model": "openrouter-3o__dev"
+      },
+      "human_author": null
+    },
+    "s_fb430f968cf7ee": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a3914f80239e74be2ca5b44",
+        "model": "openrouter-3o__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {
+    "src/components/tasks/task-list.tsx": [
+      {
+        "hash": "s_7ac40d4ed12c2e::t_5b0affea827712",
+        "line_ranges": [
+          {
+            "Single": 176
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a391d1b0239e74be2ca5d0c",
+            "tool_type": "agent",
+            "tool_id": "Edit",
+            "line_ranges": [
+              {
+                "Single": 176
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "hash": "s_7ac40d4ed12c2e::t_3db3abf246283d",
+        "line_ranges": [
+          {
+            "Range": [
+              227,
+              228
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a391d370239e74be2ca5d12",
+            "tool_type": "agent",
+            "tool_id": "Edit",
+            "line_ranges": [
+              {
+                "Range": [
+                  227,
+                  228
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "hash": "s_7ac40d4ed12c2e::t_5e27329a737dba",
+        "line_ranges": [
+          {
+            "Range": [
+              195,
+              196
+            ]
+          }
+        ],
+        "mixed_line_ranges": [],
+        "operations": [
+          {
+            "operation_id": "6a391d2b0239e74be2ca5d0f",
+            "tool_type": "agent",
+            "tool_id": "Edit",
+            "line_ranges": [
+              {
+                "Range": [
+                  195,
+                  196
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "remote_transcripts": {
+    "s_7ac40d4ed12c2e": {
+      "tool": "trae",
+      "conversation_id": "6a3913e80239e74be2ca5ab5",
+      "session_id": "6a3913e80239e74be2ca5ab5",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    },
+    "s_7ac40d4ed12c2e::t_3db3abf246283d": {
+      "tool": "trae",
+      "conversation_id": "6a3913e80239e74be2ca5ab5",
+      "session_id": "6a3913e80239e74be2ca5ab5",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    },
+    "s_7ac40d4ed12c2e::t_5b0affea827712": {
+      "tool": "trae",
+      "conversation_id": "6a3913e80239e74be2ca5ab5",
+      "session_id": "6a3913e80239e74be2ca5ab5",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    },
+    "s_7ac40d4ed12c2e::t_5e27329a737dba": {
+      "tool": "trae",
+      "conversation_id": "6a3913e80239e74be2ca5ab5",
+      "session_id": "6a3913e80239e74be2ca5ab5",
+      "status": "remote_only",
+      "message": "Remote transcript resolution is not implemented yet for TRAE prompts."
+    }
+  }
+}
