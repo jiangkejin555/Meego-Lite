@@ -135,18 +135,32 @@ registry-config: ## 配置 Bun/npm 国内镜像源
 # ==============================================================================
 # 项目构建
 # ==============================================================================
-install: ## 安装项目依赖（生产模式，跳过 electron）
-	@printf "$(CYAN)>> 清理 npm/yarn/pnpm lockfile 残留...$(RESET)\n"
+install: ## 安装项目依赖（生产模式，按 bun.lock 严格装包）
+	@printf "$(CYAN)>> 清理其他包管理器的 lockfile 残留...$(RESET)\n"
 	@rm -f package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null || true
-	@printf "$(CYAN)>> 安装项目依赖（生产模式）...$(RESET)\n"
-	@CI= NODE_ENV=development bun install --production --no-frozen-lockfile --registry=$(NPM_REGISTRY)
+	@printf "$(CYAN)>> 安装项目依赖（生产模式，按 bun.lock 严格装包）...$(RESET)\n"
+	@if [ -f bun.lock ] || [ -f bun.lockb ]; then \
+		bun install --production --frozen-lockfile --registry=$(NPM_REGISTRY) || \
+		(printf "$(YELLOW)Bun frozen 失败，回退到 npm...$(RESET)\n" && \
+		 npm install --omit=dev --no-package-lock --registry=$(NPM_REGISTRY)); \
+	else \
+		printf "$(YELLOW)未找到 bun.lock，从头生成...$(RESET)\n"; \
+		bun install --production --no-frozen-lockfile --registry=$(NPM_REGISTRY); \
+	fi
 	@printf "$(GREEN)✓ 依赖安装完成$(RESET)\n"
 
-install-full: ## 安装完整依赖（含 dev，build 时需要）
-	@printf "$(CYAN)>> 清理 npm/yarn/pnpm lockfile 残留...$(RESET)\n"
+install-full: ## 安装完整依赖（含 dev，按 bun.lock 严格装包）
+	@printf "$(CYAN)>> 清理其他包管理器的 lockfile 残留...$(RESET)\n"
 	@rm -f package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null || true
-	@printf "$(CYAN)>> 安装完整依赖...$(RESET)\n"
-	@CI= NODE_ENV=development bun install --no-frozen-lockfile --registry=$(NPM_REGISTRY)
+	@printf "$(CYAN)>> 安装完整依赖（按 bun.lock 严格装包）...$(RESET)\n"
+	@if [ -f bun.lock ] || [ -f bun.lockb ]; then \
+		bun install --frozen-lockfile --registry=$(NPM_REGISTRY) || \
+		(printf "$(YELLOW)Bun frozen 失败，回退到 npm...$(RESET)\n" && \
+		 npm install --no-package-lock --registry=$(NPM_REGISTRY)); \
+	else \
+		printf "$(YELLOW)未找到 bun.lock，从头生成...$(RESET)\n"; \
+		bun install --no-frozen-lockfile --registry=$(NPM_REGISTRY); \
+	fi
 	@printf "$(GREEN)✓ 依赖安装完成$(RESET)\n"
 
 build: install-full ## 构建项目
