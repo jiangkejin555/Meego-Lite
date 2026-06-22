@@ -140,12 +140,15 @@ install: ## 安装项目依赖（生产模式，按 bun.lock 严格装包）
 	@rm -f package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null || true
 	@printf "$(CYAN)>> 安装项目依赖（生产模式，按 bun.lock 严格装包）...$(RESET)\n"
 	@if [ -f bun.lock ] || [ -f bun.lockb ]; then \
-		bun install --production --frozen-lockfile --registry=$(NPM_REGISTRY) || \
-		(printf "$(YELLOW)Bun frozen 失败，回退到 npm...$(RESET)\n" && \
-		 npm install --omit=dev --no-package-lock --registry=$(NPM_REGISTRY)); \
+		( bun install --production --frozen-lockfile --registry=$(NPM_REGISTRY) || \
+		  ( printf "$(YELLOW)Bun frozen 失败，重试不带 frozen...$(RESET)\n" && \
+		    bun install --production --no-frozen-lockfile --registry=$(NPM_REGISTRY) ) || \
+		  ( printf "$(YELLOW)Bun 仍失败，回退到 npm（含 legacy-peer-deps）...$(RESET)\n" && \
+		    npm install --omit=dev --no-package-lock --legacy-peer-deps --registry=$(NPM_REGISTRY) ) ); \
 	else \
 		printf "$(YELLOW)未找到 bun.lock，从头生成...$(RESET)\n"; \
-		bun install --production --no-frozen-lockfile --registry=$(NPM_REGISTRY); \
+		bun install --production --no-frozen-lockfile --registry=$(NPM_REGISTRY) || \
+		npm install --omit=dev --no-package-lock --legacy-peer-deps --registry=$(NPM_REGISTRY); \
 	fi
 	@printf "$(GREEN)✓ 依赖安装完成$(RESET)\n"
 
@@ -154,12 +157,15 @@ install-full: ## 安装完整依赖（含 dev，按 bun.lock 严格装包）
 	@rm -f package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null || true
 	@printf "$(CYAN)>> 安装完整依赖（按 bun.lock 严格装包）...$(RESET)\n"
 	@if [ -f bun.lock ] || [ -f bun.lockb ]; then \
-		bun install --frozen-lockfile --registry=$(NPM_REGISTRY) || \
-		(printf "$(YELLOW)Bun frozen 失败，回退到 npm...$(RESET)\n" && \
-		 npm install --no-package-lock --registry=$(NPM_REGISTRY)); \
+		( bun install --frozen-lockfile --registry=$(NPM_REGISTRY) || \
+		  ( printf "$(YELLOW)Bun frozen 失败，重试不带 frozen...$(RESET)\n" && \
+		    bun install --no-frozen-lockfile --registry=$(NPM_REGISTRY) ) || \
+		  ( printf "$(YELLOW)Bun 仍失败，回退到 npm（含 legacy-peer-deps）...$(RESET)\n" && \
+		    npm install --no-package-lock --legacy-peer-deps --registry=$(NPM_REGISTRY) ) ); \
 	else \
 		printf "$(YELLOW)未找到 bun.lock，从头生成...$(RESET)\n"; \
-		bun install --no-frozen-lockfile --registry=$(NPM_REGISTRY); \
+		bun install --no-frozen-lockfile --registry=$(NPM_REGISTRY) || \
+		npm install --no-package-lock --legacy-peer-deps --registry=$(NPM_REGISTRY); \
 	fi
 	@printf "$(GREEN)✓ 依赖安装完成$(RESET)\n"
 
