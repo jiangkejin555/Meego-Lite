@@ -1,0 +1,128 @@
+src/app/api/auth/logout/route.ts
+  s_689a09c9dbc374::t_0c601601e26558 1-9
+src/lib/db-migrations.test.ts
+  s_689a09c9dbc374::t_a40f286e7f5fdc 72-73
+src/lib/notification.ts
+  s_689a09c9dbc374::t_7d8927b58bc877 187
+.trae/specs/add-auth-multiuser/tasks.md
+  s_689a09c9dbc374::t_352d91718bba58 44-47,49-52,54-56
+  s_689a09c9dbc374::t_7c5828c0394036 21-23
+  s_689a09c9dbc374::t_aa0b590064c9ae 25-27,29-32,34-37,39-42
+  s_689a09c9dbc374::t_631b21ed56fb9a 58
+  s_689a09c9dbc374::t_9094c1e8dd9d2d 13-17,19
+  s_689a09c9dbc374::t_2fd1b49ea33dec 3-7,9-11
+src/lib/db-migrations.ts
+  s_689a09c9dbc374::t_ec1804d99fd9d5 124-141,145,148
+  s_689a09c9dbc374::t_9cd711a6dc32d9 11,13,33-43
+  s_689a09c9dbc374::t_ba3af2c0aed557 77-87
+src/app/api/tasks/route.ts
+  s_689a09c9dbc374::t_13d1b8bd384d19 11,17-19,24,30-43,45,47-48,51-56,60,93-95,105-116,118-135,137,156-158
+src/app/api/users/route.ts
+  s_689a09c9dbc374::t_499c71b4c5ffdd 4,6-7,10-12,23,26-31
+src/app/api/notifications/route.ts
+  s_689a09c9dbc374::t_4ad6fb8cd65d62 3-4,6,8-12,16
+src/app/api/users/[id]/route.ts
+  s_689a09c9dbc374::t_4145371fa50ab5 4-10,17,21-22,24-26,29-30,33,51-56,61,66-70,89-90,93-94,96-98,101-103,105-128
+  s_689a09c9dbc374::t_94a87b4ca49e7b 47-50,57-60,62-65
+  s_689a09c9dbc374::t_3e11963c0d2bed 11
+src/app/page.tsx
+  s_689a09c9dbc374::t_7a0948a1cc544c 13-14,16-18,20,37-43,47-48,50,80
+src/app/api/auth/register/route.ts
+  s_689a09c9dbc374::t_fd4225903d49c6 1-70
+src/middleware.ts
+  s_689a09c9dbc374::t_f826e1f1d9ea02 1-50
+src/app/api/progress/route.ts
+  s_689a09c9dbc374::t_38933054901d64 5-22,28-30,35-40,49,53-55,59-60,68-70,77
+src/components/layout/sidebar.tsx
+  s_689a09c9dbc374::t_324f8c49017cae 21
+.env.example
+  s_689a09c9dbc374::t_7613fef3b5c398 37-40
+src/app/api/auth/login/route.ts
+  s_689a09c9dbc374::t_9a3affb5e3bfb9 1-65
+src/app/api/stats/route.ts
+  s_689a09c9dbc374::t_39c828c09290e1 4,6,10-17,33-42,46-52,58-67,72-85,90-96,106-112,119-122,130-138
+.trae/specs/add-auth-multiuser/checklist.md
+  s_689a09c9dbc374::t_8572124008ce94 4-6,9-13,16-22,25-26,29-31,34-35,38-41,44-46,49-50
+src/components/projects/project-form.tsx
+  s_689a09c9dbc374::t_1a4d958705cc51 232,234
+  s_689a09c9dbc374::t_72db27806dcd4d 222
+  s_689a09c9dbc374::t_a4f437870fde3f 186-189
+src/components/tasks/task-form.tsx
+  s_689a09c9dbc374::t_82521d8753a279 109-115,118
+  s_bed02801a79e53::t_9c6f4bf3fd1a21 3
+  s_689a09c9dbc374::t_ff6db0f77df243 744,746-748,750-752,754-758,767
+  s_689a09c9dbc374::t_fb5e45901dc380 741-743,745,749,753,759-766,768,785
+  s_689a09c9dbc374::t_fd2e400b313c05 769-784
+  s_689a09c9dbc374::t_f257fbac13ca2c 78
+  s_689a09c9dbc374::t_728bceac3e4514 1040
+  s_bed02801a79e53::t_06143f78afa273 1296-1338
+  s_bed02801a79e53::t_f296caf8e933de 672-710
+  s_bed02801a79e53::t_c1cfb69ddaf7a0 42
+  s_bed02801a79e53::t_60f5d90bee2576 893
+  s_bed02801a79e53::t_94576690e60c92 937,943-954,956-957
+  s_bed02801a79e53::t_2bf439ec7742e3 955
+  s_689a09c9dbc374::t_73fe7ee454e20c 1016-1026,1029-1033
+src/components/tasks/task-detail.tsx
+  s_bed02801a79e53::t_d6deeefdf5f9b4 463-466,468-469
+  s_bed02801a79e53::t_63d91b27b6d970 19
+src/app/api/projects/[id]/route.ts
+  s_689a09c9dbc374::t_61fc10265a6f9b 6,13,16-18,30-38,46-48,60-66,112-116,132,135-137,139-154
+src/components/settings/profile-settings.tsx
+  s_689a09c9dbc374::t_17766063c904db 4-5,21-22,38-47,49-50,52,54-57,62,64,82-84,86,102,115-128,133-145,185-188,212,288,292-294,311-317,327-328,330-331,333-334,347-351,369-370,377,379,381,384,388,390,398-403,422-424,426,428-429,433,470-473,476-479,485,488-497,499-501,505-506,520,550-559,561,565-573,578,582,598-600,608-616,618-620,624,641,802-803,812-831,833-847,849,851,853,855-856,858,867,887-891,893,896,905,907-911,913-945
+  s_689a09c9dbc374::t_730ca0e069aa31 189-201,203-205,208-210,213-282
+  s_689a09c9dbc374::t_71a856c3b799ea 23-29,53,79,81,129-132,147-148,151,157-184,202,207,211,283-287,289-291,295-310,318-323,344-345,352-368,371-376,378,380,382-383,385-387,389,391-397,404-421,425,474,480-482,484,502-504,507,511-512,560,562-564,574-577,579-581,583-597,601-607,617,637-639,642-648,786,788-801,906
+  s_689a09c9dbc374::t_9b826dc5a100e6 3
+  s_689a09c9dbc374::t_84007b703c9e03 59
+  s_689a09c9dbc374::t_d4667dfa87e19c 7-14,16
+  s_689a09c9dbc374::t_466a36735ba97e 80,87-99
+  s_689a09c9dbc374::t_ee7dd861cfb8ac 58
+  s_689a09c9dbc374::t_053fb8da88f3ad 146,149-150,152-156
+  s_689a09c9dbc374::t_5d438e9ef05198 427,430-432,434-459,461-462,465-469,483,486-487,498,508-510,513-519,521-549
+  s_689a09c9dbc374::t_4ff90e57f142c2 805-811,848,850,852,854,857,859-866,868-870,874,876-886,895,897-904
+src/app/api/auth/me/route.ts
+  s_689a09c9dbc374::t_b3f030dcfac8d3 1-18
+src/lib/verification.ts
+  s_689a09c9dbc374::t_6fb69bbf654cb0 3
+prisma/schema.prisma
+  s_689a09c9dbc374::t_331ef4cd4c76d0 53-54
+  s_689a09c9dbc374::t_31fc9dd2a04467 29-30,35
+  s_689a09c9dbc374::t_e48a1798b8b4c8 130-142
+src/app/api/tasks/[id]/route.ts
+  s_689a09c9dbc374::t_ad9c234aed7f52 10,17,20-22,47-55,65-67,76-84,98-115,117-132,134,139,154,157-159,166-171
+src/store/app-store.ts
+  s_689a09c9dbc374::t_692d379ec1c6c7 32
+  s_689a09c9dbc374::t_ad7f8acb3ba14a 91-92
+  s_689a09c9dbc374::t_a27d7c301d8c3d 12
+  s_689a09c9dbc374::t_fa680093ec09b4 89,93-104
+src/app/api/auth/send-code/route.ts
+  s_689a09c9dbc374::t_8106c0f31810f6 75-78
+  s_689a09c9dbc374::t_80224999777de4 21-25
+  s_689a09c9dbc374::t_a7d0c1186d33ef 1-20,26-47,52-74,79-86
+  s_689a09c9dbc374::t_f88cd2b16f94db 48-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "611c1b30f17ae4563582a1e40418d9b73e28ee61",
+  "prompts": {},
+  "sessions": {
+    "s_689a09c9dbc374": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a3911890239e74be2ca5a88",
+        "model": "openrouter-3o__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    },
+    "s_bed02801a79e53": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a3948a70239e74be2ca609c",
+        "model": "openrouter-3o__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
