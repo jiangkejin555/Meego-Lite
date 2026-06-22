@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -33,6 +34,7 @@ import {
   X,
   Plus,
   Calendar as CalendarIcon,
+  Infinity as InfinityIcon,
   RotateCcw,
   Pencil,
   Trash2,
@@ -648,6 +650,11 @@ function TaskFormBody({
     restoredDraft ?? buildInitialValues(existing, currentUser?.id)
   );
   const [tagInput, setTagInput] = useState("");
+  // 「长期任务」开关：纯本地 UI 态，提交时只看 form.deadline 是否为空。
+  // 编辑模式下若任务原本就没有截止时间，初始视为已显式标记长期任务。
+  const [isLongTerm, setIsLongTerm] = useState<boolean>(
+    () => isEdit && !!existing && existing.deadline === null
+  );
   // 顶部提示条：仅在确实恢复了“有内容”的草稿时显示。
   const [draftBannerVisible, setDraftBannerVisible] = useState(
     () => !!restoredDraft && isDraftMeaningful(restoredDraft)
@@ -928,21 +935,32 @@ function TaskFormBody({
             </div>
 
             <div className="space-y-2">
-              <Label>截止时间</Label>
+              <Label htmlFor="long-term-toggle">截止时间</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
+                    disabled={isLongTerm}
                     className={cn(
                       "w-full justify-start text-left font-normal",
-                      !form.deadline && "text-muted-foreground"
+                      !form.deadline && !isLongTerm && "text-muted-foreground",
+                      isLongTerm && "text-muted-foreground"
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.deadline ? (
-                      format(new Date(form.deadline), "yyyy-MM-dd HH:mm", { locale: zhCN })
+                    {isLongTerm ? (
+                      <>
+                        <InfinityIcon className="mr-2 h-4 w-4" />
+                        长期任务 · 无截止时间
+                      </>
                     ) : (
-                      <span>选择截止时间</span>
+                      <>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.deadline ? (
+                          format(new Date(form.deadline), "yyyy-MM-dd HH:mm", { locale: zhCN })
+                        ) : (
+                          <span>选择截止时间</span>
+                        )}
+                      </>
                     )}
                   </Button>
                 </PopoverTrigger>
@@ -1009,6 +1027,23 @@ function TaskFormBody({
                   </div>
                 </PopoverContent>
               </Popover>
+              <label
+                htmlFor="long-term-toggle"
+                className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none w-fit"
+              >
+                <Checkbox
+                  id="long-term-toggle"
+                  checked={isLongTerm}
+                  onCheckedChange={(v) => {
+                    const next = v === true;
+                    setIsLongTerm(next);
+                    if (next) {
+                      setForm({ ...form, deadline: "" });
+                    }
+                  }}
+                />
+                长期任务（无截止时间）
+              </label>
             </div>
           </div>
 

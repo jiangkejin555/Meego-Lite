@@ -356,7 +356,7 @@ export function TaskDetailDrawer() {
                   {new Date(task.deadline).toLocaleString("zh-CN")}
                 </span>
               ) : (
-                <span className="text-muted-foreground">未设置</span>
+                <span className="text-muted-foreground">长期任务（无截止时间）</span>
               )}
             </MetaRow>
 

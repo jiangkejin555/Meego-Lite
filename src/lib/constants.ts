@@ -61,6 +61,15 @@ export const TASK_STATUS_ORDER: TaskStatus[] = [
   "closed",
 ];
 
+// Sort weight for the task list "status" column: 待开始 → 进行中 → 已完成 → 已关闭 → 已暂停
+export const TASK_STATUS_SORT_ORDER: Record<TaskStatus, number> = {
+  todo: 0,
+  in_progress: 1,
+  done: 2,
+  closed: 3,
+  paused: 4,
+};
+
 export const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
   p0: "P0 紧急",
   p1: "P1 高",
@@ -68,11 +77,40 @@ export const TASK_PRIORITY_LABEL: Record<TaskPriority, string> = {
   p3: "P3 低",
 };
 
+export const TASK_PRIORITY_ORDER: TaskPriority[] = ["p0", "p1", "p2", "p3"];
+
+// ===== Kanban grouping =====
+export type KanbanGroupBy = "status" | "project" | "assignee" | "priority" | "tag";
+
+export const KANBAN_GROUP_BY_LABEL: Record<KanbanGroupBy, string> = {
+  status: "状态",
+  project: "项目",
+  assignee: "负责人",
+  priority: "优先级",
+  tag: "标签",
+};
+
+export const KANBAN_GROUP_BY_ORDER: KanbanGroupBy[] = [
+  "status",
+  "project",
+  "assignee",
+  "priority",
+  "tag",
+];
+
 export const TASK_PRIORITY_COLOR: Record<TaskPriority, string> = {
   p0: "bg-rose-500 text-white",
   p1: "bg-orange-500 text-white",
   p2: "bg-amber-400 text-amber-950",
   p3: "bg-slate-300 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
+};
+
+// Sort weight for the task list "priority" column: P0 → P1 → P2 → P3
+export const TASK_PRIORITY_SORT_ORDER: Record<TaskPriority, number> = {
+  p0: 0,
+  p1: 1,
+  p2: 2,
+  p3: 3,
 };
 
 // ===== Project constants =====

@@ -14,6 +14,9 @@ import {
 } from "@/components/ui/select";
 import { Search, RotateCcw, LayoutList, KanbanSquare } from "lucide-react";
 import {
+  KANBAN_GROUP_BY_LABEL,
+  KANBAN_GROUP_BY_ORDER,
+  type KanbanGroupBy,
   type TaskPriority,
   type TaskStatus,
 } from "@/lib/constants";
@@ -80,6 +83,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
   const resetFilter = useAppStore((s) => s.resetFilter);
   const currentUser = useAppStore((s) => s.currentUser);
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [groupBy, setGroupBy] = useState<KanbanGroupBy>("status");
 
   const filterParams = useMemo(
     () => ({
@@ -265,26 +269,53 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
           )}
         </div>
 
-        {/* Right side: View Switcher */}
-        <div className="flex items-center rounded-md border p-1 bg-muted/50 shrink-0">
-          <Button
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-7 px-3 text-xs shadow-none"
-            onClick={() => setViewMode("list")}
-          >
-            <LayoutList className="h-3.5 w-3.5 mr-1.5" />
-            列表
-          </Button>
-          <Button
-            variant={viewMode === "kanban" ? "secondary" : "ghost"}
-            size="sm"
-            className="h-7 px-3 text-xs shadow-none"
-            onClick={() => setViewMode("kanban")}
-          >
-            <KanbanSquare className="h-3.5 w-3.5 mr-1.5" />
-            看板
-          </Button>
+        {/* Right side: Group switcher (kanban only) + View Switcher */}
+        <div className="flex items-center gap-2 shrink-0">
+          {viewMode === "kanban" && (
+            <Select
+              value={groupBy}
+              onValueChange={(v) => setGroupBy(v as KanbanGroupBy)}
+            >
+              <SelectTrigger className="h-9 w-auto min-w-[130px] bg-card shadow-sm">
+                <div className="flex min-w-0 items-center text-xs">
+                  <span className="mr-1.5 shrink-0 text-muted-foreground">
+                    分组:
+                  </span>
+                  <span className="min-w-0 truncate">
+                    <SelectValue />
+                  </span>
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                {KANBAN_GROUP_BY_ORDER.map((g) => (
+                  <SelectItem key={g} value={g}>
+                    {KANBAN_GROUP_BY_LABEL[g]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <div className="flex items-center rounded-md border p-1 bg-muted/50">
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-3 text-xs shadow-none"
+              onClick={() => setViewMode("list")}
+            >
+              <LayoutList className="h-3.5 w-3.5 mr-1.5" />
+              列表
+            </Button>
+            <Button
+              variant={viewMode === "kanban" ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 px-3 text-xs shadow-none"
+              onClick={() => setViewMode("kanban")}
+            >
+              <KanbanSquare className="h-3.5 w-3.5 mr-1.5" />
+              看板
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -292,7 +323,13 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
       {viewMode === "list" ? (
         <TaskList tasks={tasks} isLoading={isLoading} users={users} />
       ) : (
-        <TaskKanban tasks={tasks} isLoading={isLoading} />
+        <TaskKanban
+          tasks={tasks}
+          isLoading={isLoading}
+          groupBy={groupBy}
+          users={users}
+          projects={projects}
+        />
       )}
     </div>
   );

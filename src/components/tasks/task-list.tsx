@@ -40,13 +40,18 @@ import {
   AlertTriangle,
   Check,
   ChevronDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronsUpDown,
 } from "lucide-react";
 import {
   TASK_PRIORITY_COLOR,
   TASK_PRIORITY_LABEL,
+  TASK_PRIORITY_SORT_ORDER,
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
   TASK_STATUS_ORDER,
+  TASK_STATUS_SORT_ORDER,
   tagColor,
   type TaskPriority,
   type TaskStatus,
@@ -168,6 +173,45 @@ function deadlineStatus(
   };
 }
 
+type SortKey = "createdAt" | "project" | "status" | "priority" | "deadline" | "assignee";
+type SortDir = "asc" | "desc";
+
+// 1 means the value is empty (always sorted last regardless of direction)
+function emptyRank(t: TaskItem, key: SortKey): number {
+  switch (key) {
+    case "project":
+      return t.project?.name ? 0 : 1;
+    case "deadline":
+      return t.deadline ? 0 : 1;
+    case "assignee":
+      return t.assignee?.name ? 0 : 1;
+    default:
+      return 0;
+  }
+}
+
+function compareTasks(a: TaskItem, b: TaskItem, key: SortKey): number {
+  switch (key) {
+    case "createdAt":
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    case "project":
+      return (a.project?.name ?? "").localeCompare(b.project?.name ?? "", "zh-CN");
+    case "status":
+      return TASK_STATUS_SORT_ORDER[a.status] - TASK_STATUS_SORT_ORDER[b.status];
+    case "priority":
+      return (
+        TASK_PRIORITY_SORT_ORDER[a.priority] -
+        TASK_PRIORITY_SORT_ORDER[b.priority]
+      );
+    case "deadline":
+      return new Date(a.deadline!).getTime() - new Date(b.deadline!).getTime();
+    case "assignee":
+      return (a.assignee?.name ?? "").localeCompare(b.assignee?.name ?? "", "zh-CN");
+    default:
+      return 0;
+  }
+}
+
 export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoading: boolean, users: UserItem[] }) {
   const openTaskForm = useAppStore((s) => s.openTaskForm);
   const setSelectedTaskId = useAppStore((s) => s.setSelectedTaskId);
@@ -180,6 +224,27 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
   );
   const [progressOpenId, setProgressOpenId] = useState<string | null>(null);
   const [progressNote, setProgressNote] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const sortedTasks = useMemo(() => {
+    const factor = sortDir === "asc" ? 1 : -1;
+    return [...tasks].sort((a, b) => {
+      const ea = emptyRank(a, sortKey);
+      const eb = emptyRank(b, sortKey);
+      if (ea !== eb) return ea - eb; // empties always last
+      return compareTasks(a, b, sortKey) * factor;
+    });
+  }, [tasks, sortKey, sortDir]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: TaskStatus }) =>
@@ -279,6 +344,40 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
 
   const PROGRESS_OPTIONS = [0, 25, 50, 75, 100];
 
+  const SortableHead = ({
+    sortableKey,
+    label,
+    className,
+  }: {
+    sortableKey: SortKey;
+    label: string;
+    className?: string;
+  }) => {
+    const active = sortKey === sortableKey;
+    const Icon = !active ? ChevronsUpDown : sortDir === "asc" ? ArrowUp : ArrowDown;
+    return (
+      <TableHead className={className}>
+        <button
+          type="button"
+          onClick={() => toggleSort(sortableKey)}
+          className={cn(
+            "group inline-flex items-center gap-1 rounded outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+          )}
+          title="点击排序"
+        >
+          {label}
+          <Icon
+            className={cn(
+              "h-3.5 w-3.5 shrink-0 transition-opacity",
+              active ? "opacity-100" : "opacity-40 group-hover:opacity-70"
+            )}
+          />
+        </button>
+      </TableHead>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Table */}
@@ -288,13 +387,13 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[220px]">任务</TableHead>
-                <TableHead className="w-[140px]">项目</TableHead>
+                <SortableHead sortableKey="project" label="项目" className="w-[140px]" />
                 <TableHead className="w-[160px]">标签</TableHead>
-                <TableHead className="w-[100px]">状态</TableHead>
+                <SortableHead sortableKey="status" label="状态" className="w-[100px]" />
                 <TableHead className="w-[260px]">进度</TableHead>
-                <TableHead className="w-[100px]">优先级</TableHead>
-                <TableHead className="w-[120px]">截止时间</TableHead>
-                <TableHead className="w-[140px]">责任人</TableHead>
+                <SortableHead sortableKey="priority" label="优先级" className="w-[100px]" />
+                <SortableHead sortableKey="deadline" label="截止时间" className="w-[120px]" />
+                <SortableHead sortableKey="assignee" label="责任人" className="w-[140px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -322,7 +421,7 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
                   </TableCell>
                 </TableRow>
               ) : (
-                tasks.map((t) => {
+                sortedTasks.map((t) => {
                   const dl = deadlineStatus(t.deadline, t.status);
                   return (
                     <TableRow
@@ -553,7 +652,12 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
                             {dl.label}
                           </span>
                         ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                          <Badge
+                            variant="outline"
+                            className="text-[11px] font-normal text-muted-foreground bg-slate-50 border-slate-200 dark:bg-slate-900/40 dark:border-slate-700"
+                          >
+                            长期
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell>
