@@ -139,14 +139,14 @@ install: ## 安装项目依赖（生产模式，跳过 electron）
 	@printf "$(CYAN)>> 清理 npm/yarn/pnpm lockfile 残留...$(RESET)\n"
 	@rm -f package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null || true
 	@printf "$(CYAN)>> 安装项目依赖（生产模式）...$(RESET)\n"
-	@bun install --production --registry=$(NPM_REGISTRY)
+	@bun install --production --no-frozen-lockfile --registry=$(NPM_REGISTRY)
 	@printf "$(GREEN)✓ 依赖安装完成$(RESET)\n"
 
 install-full: ## 安装完整依赖（含 dev，build 时需要）
 	@printf "$(CYAN)>> 清理 npm/yarn/pnpm lockfile 残留...$(RESET)\n"
 	@rm -f package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null || true
 	@printf "$(CYAN)>> 安装完整依赖...$(RESET)\n"
-	@bun install --registry=$(NPM_REGISTRY)
+	@bun install --no-frozen-lockfile --registry=$(NPM_REGISTRY)
 	@printf "$(GREEN)✓ 依赖安装完成$(RESET)\n"
 
 build: install-full ## 构建项目
