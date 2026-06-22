@@ -128,7 +128,7 @@ swap: ## 创建 2GB swap（防止 2G 内存 OOM）
 registry-config: ## 配置 Bun/npm 国内镜像源
 	@printf "$(CYAN)>> 配置国内镜像源...$(RESET)\n"
 	@mkdir -p $(HOME)/.bun
-	@printf '[install]\nregistry = "$(NPM_REGISTRY)"\n' > $(HOME)/.bun/bunfig.toml
+	@printf '[install]\nregistry = "$(NPM_REGISTRY)"\nfrozenLockfile = false\n' > $(HOME)/.bun/bunfig.toml
 	@printf 'registry=$(NPM_REGISTRY)\nelectron_mirror=https://npmmirror.com/mirrors/electron/\nelectron_builder_binaries_mirror=https://npmmirror.com/mirrors/electron-builder-binaries/\n' > $(HOME)/.npmrc
 	@printf "$(GREEN)✓ 镜像配置完成$(RESET)\n"
 
@@ -139,14 +139,14 @@ install: ## 安装项目依赖（生产模式，跳过 electron）
 	@printf "$(CYAN)>> 清理 npm/yarn/pnpm lockfile 残留...$(RESET)\n"
 	@rm -f package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null || true
 	@printf "$(CYAN)>> 安装项目依赖（生产模式）...$(RESET)\n"
-	@bun install --production --no-frozen-lockfile --registry=$(NPM_REGISTRY)
+	@CI= NODE_ENV=development bun install --production --no-frozen-lockfile --registry=$(NPM_REGISTRY)
 	@printf "$(GREEN)✓ 依赖安装完成$(RESET)\n"
 
 install-full: ## 安装完整依赖（含 dev，build 时需要）
 	@printf "$(CYAN)>> 清理 npm/yarn/pnpm lockfile 残留...$(RESET)\n"
 	@rm -f package-lock.json yarn.lock pnpm-lock.yaml 2>/dev/null || true
 	@printf "$(CYAN)>> 安装完整依赖...$(RESET)\n"
-	@bun install --no-frozen-lockfile --registry=$(NPM_REGISTRY)
+	@CI= NODE_ENV=development bun install --no-frozen-lockfile --registry=$(NPM_REGISTRY)
 	@printf "$(GREEN)✓ 依赖安装完成$(RESET)\n"
 
 build: install-full ## 构建项目
