@@ -35,6 +35,9 @@ YELLOW := \033[33m
 RED    := \033[31m
 RESET  := \033[0m
 
+# 强制使用 bash（默认 /bin/sh 在 Ubuntu 上是 dash，不支持很多语法）
+SHELL := /bin/bash
+
 .DEFAULT_GOAL := help
 .PHONY: help init system-deps install build start stop restart status logs \
         db-init db-push db-backup nginx-temp nginx-prod ssl deploy first-deploy update \
@@ -239,31 +242,69 @@ monit: ## PM2 实时监控（CPU / 内存）
 # ==============================================================================
 # Nginx
 # ==============================================================================
+# ==============================================================================
+# Nginx 配置模板（使用 define 块定义多行内容）
+# ==============================================================================
+define NGINX_TEMP_CONF
+server {
+    listen $(TEMP_PORT);
+    server_name _;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript;
+    location /_next/static/ {
+        proxy_pass http://127.0.0.1:$(APP_PORT);
+        expires 365d;
+        add_header Cache-Control "public, immutable";
+    }
+    location / {
+        proxy_pass http://127.0.0.1:$(APP_PORT);
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $$host;
+        proxy_set_header X-Real-IP $$remote_addr;
+        proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $$scheme;
+    }
+}
+endef
+export NGINX_TEMP_CONF
+
+define NGINX_PROD_CONF
+server {
+    listen 80;
+    server_name $(DOMAIN) www.$(DOMAIN);
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
+    gzip_min_length 1024;
+    client_max_body_size 20M;
+    location /_next/static/ {
+        proxy_pass http://127.0.0.1:$(APP_PORT);
+        expires 365d;
+        add_header Cache-Control "public, immutable";
+    }
+    location ~* \.(jpg|jpeg|png|gif|ico|webp|svg|woff|woff2)$$ {
+        proxy_pass http://127.0.0.1:$(APP_PORT);
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+    location / {
+        proxy_pass http://127.0.0.1:$(APP_PORT);
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $$host;
+        proxy_set_header X-Real-IP $$remote_addr;
+        proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $$scheme;
+    }
+}
+endef
+export NGINX_PROD_CONF
+
 nginx-temp: ## 配置临时 Nginx（监听 $(TEMP_PORT) 端口，备案前用）
 	@printf "$(CYAN)>> 配置临时 Nginx (端口 $(TEMP_PORT))...$(RESET)\n"
-	@sudo tee /etc/nginx/sites-available/$(APP_NAME)-temp > /dev/null <<-'EOF'
-		server {
-		    listen $(TEMP_PORT);
-		    server_name _;
-		    gzip on;
-		    gzip_types text/plain text/css application/json application/javascript;
-		    location /_next/static/ {
-		        proxy_pass http://127.0.0.1:$(APP_PORT);
-		        expires 365d;
-		        add_header Cache-Control "public, immutable";
-		    }
-		    location / {
-		        proxy_pass http://127.0.0.1:$(APP_PORT);
-		        proxy_http_version 1.1;
-		        proxy_set_header Upgrade $$http_upgrade;
-		        proxy_set_header Connection 'upgrade';
-		        proxy_set_header Host $$host;
-		        proxy_set_header X-Real-IP $$remote_addr;
-		        proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
-		        proxy_set_header X-Forwarded-Proto $$scheme;
-		    }
-		}
-	EOF
+	@echo "$$NGINX_TEMP_CONF" | sudo tee /etc/nginx/sites-available/$(APP_NAME)-temp > /dev/null
 	@sudo ln -sf /etc/nginx/sites-available/$(APP_NAME)-temp /etc/nginx/sites-enabled/
 	@sudo rm -f /etc/nginx/sites-enabled/default
 	@sudo nginx -t
@@ -278,36 +319,7 @@ nginx-prod: ## 配置正式 Nginx（监听 80，需指定 DOMAIN）
 		exit 1; \
 	fi
 	@printf "$(CYAN)>> 配置正式 Nginx (域名 $(DOMAIN))...$(RESET)\n"
-	@sudo tee /etc/nginx/sites-available/$(APP_NAME) > /dev/null <<-EOF
-		server {
-		    listen 80;
-		    server_name $(DOMAIN) www.$(DOMAIN);
-		    gzip on;
-		    gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
-		    gzip_min_length 1024;
-		    client_max_body_size 20M;
-		    location /_next/static/ {
-		        proxy_pass http://127.0.0.1:$(APP_PORT);
-		        expires 365d;
-		        add_header Cache-Control "public, immutable";
-		    }
-		    location ~* \.(jpg|jpeg|png|gif|ico|webp|svg|woff|woff2)$$ {
-		        proxy_pass http://127.0.0.1:$(APP_PORT);
-		        expires 30d;
-		        add_header Cache-Control "public, no-transform";
-		    }
-		    location / {
-		        proxy_pass http://127.0.0.1:$(APP_PORT);
-		        proxy_http_version 1.1;
-		        proxy_set_header Upgrade $$http_upgrade;
-		        proxy_set_header Connection 'upgrade';
-		        proxy_set_header Host $$host;
-		        proxy_set_header X-Real-IP $$remote_addr;
-		        proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
-		        proxy_set_header X-Forwarded-Proto $$scheme;
-		    }
-		}
-	EOF
+	@echo "$$NGINX_PROD_CONF" | sudo tee /etc/nginx/sites-available/$(APP_NAME) > /dev/null
 	@sudo rm -f /etc/nginx/sites-enabled/$(APP_NAME)-temp
 	@sudo ln -sf /etc/nginx/sites-available/$(APP_NAME) /etc/nginx/sites-enabled/
 	@sudo nginx -t
