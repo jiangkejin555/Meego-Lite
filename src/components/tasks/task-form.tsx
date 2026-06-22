@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/app-store";
 import {
@@ -39,6 +39,7 @@ import {
   Pencil,
   Trash2,
   Check,
+  Link2,
 } from "lucide-react";
 import {
   TASK_PRIORITY_LABEL,
@@ -74,6 +75,7 @@ interface ExistingTask {
 interface ProjectOption {
   id: string;
   name: string;
+  owners: { id: string; name: string; deletedAt?: string | null }[];
 }
 
 // Sentinel value for the "暂不关联" (no project) option, since Radix Select
@@ -104,9 +106,16 @@ async function fetchProjectOptions(): Promise<ProjectOption[]> {
   const res = await fetch("/api/projects");
   if (!res.ok) return [];
   const data = await res.json();
-  return (data.projects as Array<{ id: string; name: string }>).map((p) => ({
+  return (
+    data.projects as Array<{
+      id: string;
+      name: string;
+      owners?: { id: string; name: string; deletedAt?: string | null }[];
+    }>
+  ).map((p) => ({
     id: p.id,
     name: p.name,
+    owners: p.owners ?? [],
   }));
 }
 
@@ -660,6 +669,45 @@ function TaskFormBody({
     () => !!restoredDraft && isDraftMeaningful(restoredDraft)
   );
 
+  // 「插入链接」弹窗：用户填文档名 + 链接，自动拼成 Markdown，无需感知语法。
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkText, setLinkText] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+
+  const insertLink = () => {
+    const text = linkText.trim();
+    const rawUrl = linkUrl.trim();
+    if (!rawUrl) return;
+    const url = /^(https?:\/\/|mailto:)/i.test(rawUrl)
+      ? rawUrl
+      : `https://${rawUrl}`;
+    const snippet = `[${text || url}](${url})`;
+    const el = descriptionRef.current;
+    const current = form.description;
+    let next: string;
+    let caret: number;
+    if (el) {
+      const start = el.selectionStart ?? current.length;
+      const end = el.selectionEnd ?? current.length;
+      next = current.slice(0, start) + snippet + current.slice(end);
+      caret = start + snippet.length;
+    } else {
+      next = current ? `${current} ${snippet}` : snippet;
+      caret = next.length;
+    }
+    setForm({ ...form, description: next });
+    setLinkDialogOpen(false);
+    setLinkText("");
+    setLinkUrl("");
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus();
+        el.setSelectionRange(caret, caret);
+      }
+    });
+  };
+
   // 防抖将表单写入 localStorage（仅新建模式）。
   useEffect(() => {
     if (isEdit) return;
@@ -689,6 +737,51 @@ function TaskFormBody({
     queryKey: ["project-options"],
     queryFn: fetchProjectOptions,
   });
+
+  // Assignee candidates (Plan A: pure project-level authorization).
+  // - With a project: only that project's authorized users.
+  // - Without a project: only myself.
+  const authorizedAssignees = useMemo<{ id: string; name: string }[]>(() => {
+    if (form.projectId === NO_PROJECT) {
+      return currentUser
+        ? [{ id: currentUser.id, name: currentUser.name }]
+        : [];
+    }
+    const project = projectOptions.find((p) => p.id === form.projectId);
+    return (project?.owners ?? []).map((o) => ({ id: o.id, name: o.name }));
+  }, [form.projectId, projectOptions, currentUser]);
+
+  // The currently-selected assignee is always kept in the list so the Select can
+  // render it even if they are no longer authorized (legacy data / loading).
+  const assigneeCandidates = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+    for (const a of authorizedAssignees) map.set(a.id, a);
+    if (form.assigneeId && !map.has(form.assigneeId)) {
+      const known = users.find((u) => u.id === form.assigneeId);
+      map.set(form.assigneeId, {
+        id: form.assigneeId,
+        name: known?.name ?? "未知用户",
+      });
+    }
+    return Array.from(map.values());
+  }, [authorizedAssignees, form.assigneeId, users]);
+
+  // Switching to a project that doesn't authorize the current assignee clears it.
+  const handleProjectChange = (projectId: string) => {
+    setForm((f) => {
+      const authorized =
+        projectId === NO_PROJECT
+          ? currentUser
+            ? [currentUser.id]
+            : []
+          : (projectOptions.find((p) => p.id === projectId)?.owners ?? []).map(
+              (o) => o.id
+            );
+      const keepAssignee =
+        f.assigneeId && authorized.includes(f.assigneeId) ? f.assigneeId : "";
+      return { ...f, projectId, assigneeId: keepAssignee };
+    });
+  };
 
   const createMutation = useMutation({
     mutationFn: createTask,
@@ -797,6 +890,7 @@ function TaskFormBody({
   }
 
   return (
+    <>
     <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden" onKeyDown={handleKeyDown}>
       <DialogHeader className="px-6 py-4 border-b">
         <DialogTitle>{isEdit ? "编辑任务" : "新建任务"}</DialogTitle>
@@ -840,11 +934,27 @@ function TaskFormBody({
             <Label htmlFor="description">任务描述</Label>
             <Textarea
               id="description"
+              ref={descriptionRef}
               className="min-h-[120px] resize-y"
               placeholder="详细说明任务背景、目标、验收标准等"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
+            <div className="flex items-center justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 shadow-none"
+                onClick={() => setLinkDialogOpen(true)}
+              >
+                <Link2 className="h-3.5 w-3.5 mr-1.5" />
+                插入链接
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                支持插入任意链接（飞书 / 企业微信文档、网页等），详情页将展示为可点击的名称
+              </p>
+            </div>
           </div>
 
           {/* Metadata Section (Status, Priority, Assignee, Deadline, Progress) */}
@@ -903,20 +1013,31 @@ function TaskFormBody({
                   <SelectValue placeholder="选择责任人" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name}
-                    </SelectItem>
-                  ))}
+                  {assigneeCandidates.length === 0 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      该项目暂无授权用户
+                    </div>
+                  ) : (
+                    assigneeCandidates.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {form.projectId === NO_PROJECT
+                  ? "未关联项目时只能指派给自己"
+                  : "仅可指派给该项目的授权用户"}
+              </p>
             </div>
 
             <div className="space-y-2">
               <Label>关联项目</Label>
               <Select
                 value={form.projectId}
-                onValueChange={(v) => setForm({ ...form, projectId: v })}
+                onValueChange={handleProjectChange}
               >
                 <SelectTrigger className="w-full min-w-0">
                   <SelectValue />
@@ -1172,6 +1293,49 @@ function TaskFormBody({
         </Button>
       </DialogFooter>
     </DialogContent>
+
+    <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>插入链接</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-1">
+          <div className="space-y-2">
+            <Label htmlFor="link-text">链接名称</Label>
+            <Input
+              id="link-text"
+              placeholder="如：需求文档（留空则显示链接地址）"
+              value={linkText}
+              onChange={(e) => setLinkText(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="link-url">链接地址</Label>
+            <Input
+              id="link-url"
+              placeholder="https://xxx.feishu.cn/docx/..."
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  insertLink();
+                }
+              }}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setLinkDialogOpen(false)}>
+            取消
+          </Button>
+          <Button onClick={insertLink} disabled={!linkUrl.trim()}>
+            插入
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

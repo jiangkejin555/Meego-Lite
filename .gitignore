@@ -10,6 +10,11 @@ node_modules
 !.yarn/releases
 !.yarn/versions
 
+# 项目统一使用 bun，忽略其他包管理器的 lockfile
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # testing
 /coverage
 

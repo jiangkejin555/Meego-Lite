@@ -183,7 +183,10 @@ export function ProjectFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <Label>项目负责人</Label>
+            <Label>用户授权</Label>
+            <p className="text-xs text-muted-foreground">
+              被授权的用户可查看并修改该项目下的所有任务
+            </p>
             <Popover open={ownerPickerOpen} onOpenChange={setOwnerPickerOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -216,7 +219,7 @@ export function ProjectFormDialog({
                       ))}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground">暂不指定</span>
+                    <span className="text-muted-foreground">暂不授权</span>
                   )}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
@@ -226,9 +229,9 @@ export function ProjectFormDialog({
                 align="start"
               >
                 <Command>
-                  <CommandInput placeholder="搜索成员..." />
+                  <CommandInput placeholder="搜索用户..." />
                   <CommandList>
-                    <CommandEmpty>未找到成员</CommandEmpty>
+                    <CommandEmpty>未找到用户</CommandEmpty>
                     <CommandGroup>
                       {users.map((u) => {
                         const checked = ownerIds.includes(u.id);

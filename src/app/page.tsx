@@ -10,21 +10,14 @@ import { ProjectsPage } from "@/components/projects/projects-page";
 import { TaskFormDialog } from "@/components/tasks/task-form";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail";
 import { NotificationCenter } from "@/components/notifications/notification-center";
-import { NotificationSettings } from "@/components/settings/notification-settings";
-import { UserManagement } from "@/components/users/user-management";
-import { useAppStore } from "@/store/app-store";
-import { useToast } from "@/hooks/use-toast";
+import { ProfileSettings } from "@/components/settings/profile-settings";
+import { useAppStore, type CurrentUser } from "@/store/app-store";
 
-async function seedIfNeeded() {
-  // First check if any users exist
-  const res = await fetch("/api/users");
+async function fetchMe(): Promise<CurrentUser | null> {
+  const res = await fetch("/api/auth/me");
+  if (!res.ok) return null;
   const data = await res.json();
-  if (data.users && data.users.length === 0) {
-    // Seed
-    await fetch("/api/seed", { method: "POST" });
-    return true;
-  }
-  return false;
+  return data.user as CurrentUser;
 }
 
 async function triggerDeadlineCheck() {
@@ -40,50 +33,21 @@ export default function Home() {
   const currentUser = useAppStore((s) => s.currentUser);
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
-  // Initial seed
-  const { data: seeded } = useQuery({
-    queryKey: ["initial-seed"],
-    queryFn: seedIfNeeded,
-    staleTime: Infinity,
+  // Hydrate the current user from the session. middleware already guards the
+  // page, so an unauthenticated visitor is redirected to /login before reaching
+  // here; this just syncs the store with the authenticated identity.
+  const { data: me } = useQuery({
+    queryKey: ["me"],
+    queryFn: fetchMe,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // Auto-pick first user as current user if none is selected.
-  // Runs whenever `seeded` finishes (or on mount if no seeding needed).
   useEffect(() => {
-    if (currentUser) return;
-    let cancelled = false;
-    fetch("/api/users")
-      .then((r) => r.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (data.users && data.users.length > 0) {
-          setCurrentUser({
-            id: data.users[0].id,
-            name: data.users[0].name,
-            email: data.users[0].email,
-            avatar: data.users[0].avatar,
-          });
-        }
-      })
-      .catch(() => {
-        /* silent */
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [seeded, currentUser, setCurrentUser]);
-
-  // Show seed toast once after initial seeding
-  useEffect(() => {
-    if (seeded) {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["stats"] });
-      toast({ title: "已加载示例数据" });
+    if (me && me.id !== currentUser?.id) {
+      setCurrentUser(me);
     }
-  }, [seeded, queryClient, toast]);
+  }, [me, currentUser?.id, setCurrentUser]);
 
   // Periodic deadline check (every 5 minutes)
   useEffect(() => {
@@ -113,8 +77,7 @@ export default function Home() {
             {view === "tasks" && <TasksPage />}
             {view === "projects" && <ProjectsPage />}
             {view === "notifications" && <NotificationCenter />}
-            {view === "settings" && <NotificationSettings />}
-            {view === "users" && <UserManagement />}
+            {view === "profile" && <ProfileSettings />}
           </div>
         </main>
         <footer className="mt-auto shrink-0 border-t py-3 px-6 text-xs text-muted-foreground text-center">

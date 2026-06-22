@@ -7,14 +7,18 @@ import {
   type TaskStatus,
 } from "@/lib/constants";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
+import { getSessionUser, getVisibleProjectIds, unauthorized } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
 // GET /api/tasks/[id]
-export async function GET(_req: NextRequest, ctx: RouteContext) {
+export async function GET(req: NextRequest, ctx: RouteContext) {
   await ensureDatabaseSchema();
+
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
 
   const { id } = await ctx.params;
   const task = await db.task.findUnique({
@@ -40,6 +44,15 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
   if (!task) {
     return NextResponse.json({ error: "任务不存在" }, { status: 404 });
   }
+
+  const visibleProjectIds = await getVisibleProjectIds(me.id);
+  const isVisible =
+    task.creatorId === me.id ||
+    (task.projectId !== null && visibleProjectIds.includes(task.projectId));
+  if (!isVisible) {
+    return NextResponse.json({ error: "任务不存在" }, { status: 404 });
+  }
+
   return NextResponse.json({
     task: { ...task, tags: parseStringArray(task.tags) },
   });
@@ -49,11 +62,23 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
 export async function PUT(req: NextRequest, ctx: RouteContext) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const { id } = await ctx.params;
   const body = await req.json();
 
   const existing = await db.task.findUnique({ where: { id } });
   if (!existing) {
+    return NextResponse.json({ error: "任务不存在" }, { status: 404 });
+  }
+
+  const visibleProjectIds = await getVisibleProjectIds(me.id);
+  const isVisible =
+    existing.creatorId === me.id ||
+    (existing.projectId !== null &&
+      visibleProjectIds.includes(existing.projectId));
+  if (!isVisible) {
     return NextResponse.json({ error: "任务不存在" }, { status: 404 });
   }
 
@@ -70,22 +95,49 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
   if (body.estimatedHours !== undefined)
     data.estimatedHours = body.estimatedHours;
   if (body.actualHours !== undefined) data.actualHours = body.actualHours;
+
+  // Determine the final projectId (after this update) for assignment scope checks.
+  const projectIdProvided = body.projectId !== undefined;
+  const finalProjectId: string | null = projectIdProvided
+    ? body.projectId || null
+    : existing.projectId;
+
+  // If the project is being changed, the new project must be visible to me.
+  if (projectIdProvided) {
+    if (finalProjectId && !visibleProjectIds.includes(finalProjectId)) {
+      return NextResponse.json(
+        { error: "无权在该项目下创建任务" },
+        { status: 400 }
+      );
+    }
+    data.projectId = finalProjectId;
+  }
+
   if (body.assigneeId !== undefined) {
-    if (body.assigneeId && body.assigneeId !== existing.assigneeId) {
-      const assignee = await db.user.findFirst({
-        where: { id: body.assigneeId, deletedAt: null },
-      });
-      if (!assignee) {
+    const assigneeId: string | null = body.assigneeId || null;
+    if (assigneeId) {
+      if (finalProjectId) {
+        const project = await db.project.findUnique({
+          where: { id: finalProjectId },
+          include: { owners: { select: { id: true } } },
+        });
+        const allowed = new Set<string>(project?.owners.map((o) => o.id) ?? []);
+        if (project?.creatorId) allowed.add(project.creatorId);
+        if (!allowed.has(assigneeId)) {
+          return NextResponse.json(
+            { error: "只能指派给该项目的授权成员" },
+            { status: 400 }
+          );
+        }
+      } else if (assigneeId !== me.id) {
         return NextResponse.json(
-          { error: "责任人不存在或已删除" },
+          { error: "无项目任务只能指派给自己" },
           { status: 400 }
         );
       }
     }
-    data.assigneeId = body.assigneeId || null;
+    data.assigneeId = assigneeId;
   }
-  if (body.projectId !== undefined)
-    data.projectId = body.projectId || null;
 
   const task = await db.task.update({
     where: { id },
@@ -99,12 +151,24 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 }
 
 // DELETE /api/tasks/[id]
-export async function DELETE(_req: NextRequest, ctx: RouteContext) {
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
   await ensureDatabaseSchema();
+
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
 
   const { id } = await ctx.params;
   const existing = await db.task.findUnique({ where: { id } });
   if (!existing) {
+    return NextResponse.json({ error: "任务不存在" }, { status: 404 });
+  }
+
+  const visibleProjectIds = await getVisibleProjectIds(me.id);
+  const isVisible =
+    existing.creatorId === me.id ||
+    (existing.projectId !== null &&
+      visibleProjectIds.includes(existing.projectId));
+  if (!isVisible) {
     return NextResponse.json({ error: "任务不存在" }, { status: 404 });
   }
 

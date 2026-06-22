@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/app-store";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetContent,
@@ -25,14 +28,15 @@ import {
   FolderKanban,
   Bell,
   Settings,
-  Users,
   Menu,
   Plus,
   X,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getUserInitials } from "@/lib/users";
-import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import type { ViewKey } from "@/store/app-store";
 
 const NAV: { key: ViewKey; label: string; icon: React.ElementType }[] = [
@@ -40,51 +44,34 @@ const NAV: { key: ViewKey; label: string; icon: React.ElementType }[] = [
   { key: "tasks", label: "我的任务", icon: ListTodo },
   { key: "projects", label: "我的项目", icon: FolderKanban },
   { key: "notifications", label: "通知中心", icon: Bell },
-  { key: "users", label: "成员管理", icon: Users },
-  { key: "settings", label: "通知设置", icon: Settings },
+  { key: "profile", label: "个人设置", icon: Settings },
 ];
-
-async function fetchUsers() {
-  const res = await fetch("/api/users");
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.users as Array<{ id: string; name: string; email: string }>;
-}
-
-type UserIdentity = { id: string };
-
-export function shouldClearCurrentUser(
-  currentUser: UserIdentity | null,
-  users: UserIdentity[],
-  usersLoaded: boolean
-) {
-  return (
-    !!currentUser &&
-    usersLoaded &&
-    !users.some((user) => user.id === currentUser.id)
-  );
-}
 
 export function Header() {
   const currentUser = useAppStore((s) => s.currentUser);
-  const setCurrentUser = useAppStore((s) => s.setCurrentUser);
   const setView = useAppStore((s) => s.setView);
   const openTaskForm = useAppStore((s) => s.openTaskForm);
   const view = useAppStore((s) => s.view);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const { data: users = [], isFetched: usersFetched } = useQuery({
-    queryKey: ["users"],
-    queryFn: fetchUsers,
-  });
-
-  useEffect(() => {
-    if (shouldClearCurrentUser(currentUser, users, usersFetched)) {
-      setCurrentUser(null);
-    }
-  }, [currentUser, setCurrentUser, users, usersFetched]);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const viewLabel = NAV.find((n) => n.key === view)?.label || "";
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      queryClient.clear();
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      setLoggingOut(false);
+      toast({ title: "退出失败，请重试", variant: "destructive" });
+    }
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -150,31 +137,50 @@ export function Header() {
 
       <h1 className="text-base font-semibold flex-1">{viewLabel}</h1>
 
-      <Select
-        value={currentUser?.id || ""}
-        onValueChange={(v) => {
-          const u = users.find((x) => x.id === v);
-          if (u) setCurrentUser(u);
-        }}
-      >
-        <SelectTrigger className="w-[160px] h-9">
-          <SelectValue placeholder="切换用户" />
-        </SelectTrigger>
-        <SelectContent>
-          {users.map((u) => (
-            <SelectItem key={u.id} value={u.id}>
-              <div className="flex items-center gap-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarFallback className="text-[10px]">
-                    {getUserInitials(u)}
-                  </AvatarFallback>
-                </Avatar>
-                <span>{u.name}</span>
+      {currentUser && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-9 gap-2 px-2">
+              <Avatar className="h-7 w-7">
+                <AvatarFallback className="text-[10px]">
+                  {getUserInitials(currentUser)}
+                </AvatarFallback>
+              </Avatar>
+              <span className="max-w-[120px] truncate text-sm">
+                {currentUser.name}
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium">{currentUser.name}</span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {currentUser.email}
+                </span>
               </div>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setView("profile")}>
+              <Settings className="mr-2 h-4 w-4" />
+              个人设置
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={loggingOut}
+              onSelect={(e) => {
+                e.preventDefault();
+                handleLogout();
+              }}
+              className="text-rose-600 focus:text-rose-600"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              {loggingOut ? "退出中..." : "退出登录"}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </header>
   );
 }

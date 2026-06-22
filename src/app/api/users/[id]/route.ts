@@ -1,26 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
+import {
+  SESSION_COOKIE,
+  getSessionUser,
+  hashPassword,
+  sessionCookieOptions,
+  unauthorized,
+} from "@/lib/auth";
+import { consumeVerificationCode } from "@/lib/verification";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
-// PUT /api/users/[id] — update notification settings etc.
+// PUT /api/users/[id] — personal settings: rename / notification prefs / change password
 export async function PUT(req: NextRequest, ctx: RouteContext) {
   await ensureDatabaseSchema();
 
-  const { id } = await ctx.params;
-  const body = await req.json();
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
 
-  const existing = await db.user.findUnique({ where: { id } });
-  if (!existing) {
-    return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+  const { id } = await ctx.params;
+  if (id !== me.id) {
+    return NextResponse.json({ error: "只能修改自己的信息" }, { status: 403 });
   }
+
+  const body = await req.json();
 
   const data: Record<string, unknown> = {};
   if (body.name !== undefined) data.name = String(body.name).trim();
-  if (body.email !== undefined) data.email = String(body.email).trim();
+  // email is intentionally NOT updatable here (avoid breaking unique constraint & session)
   if (body.avatar !== undefined) data.avatar = body.avatar || null;
   if (body.feishuId !== undefined) data.feishuId = body.feishuId || null;
   if (body.wecomId !== undefined) data.wecomId = body.wecomId || null;
@@ -34,7 +44,30 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
   if (body.leadTimeMinutes !== undefined)
     data.leadTimeMinutes = Number(body.leadTimeMinutes);
 
-  const user = await db.user.update({ where: { id }, data });
+  // Optional password change — verified via email code (no current password needed)
+  if (body.newPassword !== undefined || body.code !== undefined) {
+    const newPassword = String(body.newPassword ?? "");
+    const code = String(body.code ?? "").trim();
+    if (newPassword.length < 6) {
+      return NextResponse.json(
+        { error: "新密码长度至少 6 位" },
+        { status: 400 }
+      );
+    }
+    if (!code) {
+      return NextResponse.json({ error: "请输入邮箱验证码" }, { status: 400 });
+    }
+    const ok = await consumeVerificationCode(me.email, code, "reset_password");
+    if (!ok) {
+      return NextResponse.json(
+        { error: "验证码无效或已过期" },
+        { status: 400 }
+      );
+    }
+    data.passwordHash = await hashPassword(newPassword);
+  }
+
+  const user = await db.user.update({ where: { id: me.id }, data });
   return NextResponse.json({
     user: {
       id: user.id,
@@ -53,23 +86,44 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
   });
 }
 
-// DELETE /api/users/[id]
-export async function DELETE(_req: NextRequest, ctx: RouteContext) {
+// DELETE /api/users/[id] — account cancellation (hard delete), self only
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
   await ensureDatabaseSchema();
 
-  const { id } = await ctx.params;
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
 
-  const existing = await db.user.findUnique({ where: { id } });
-  if (!existing || existing.deletedAt) {
-    return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+  const { id } = await ctx.params;
+  if (id !== me.id) {
+    return NextResponse.json({ error: "只能注销自己的账号" }, { status: 403 });
   }
 
-  await db.user.update({
-    where: { id },
-    data: {
-      email: `deleted-${id}-${existing.email}`,
-      deletedAt: new Date(),
-    },
+  // Must not own any created projects or tasks (Task.creator is RESTRICT)
+  const projectCount = await db.project.count({
+    where: { creatorId: me.id },
   });
-  return NextResponse.json({ ok: true });
+  const taskCount = await db.task.count({ where: { creatorId: me.id } });
+  if (projectCount > 0 || taskCount > 0) {
+    return NextResponse.json(
+      { error: "请先删除你创建的项目和任务后再注销" },
+      { status: 400 }
+    );
+  }
+
+  // Hard delete in a transaction. Order: remove RESTRICT-bound dependents first,
+  // unbind assignee, then delete the user (cascades owners & notifications).
+  await db.$transaction([
+    db.comment.deleteMany({ where: { userId: me.id } }),
+    db.progressUpdate.deleteMany({ where: { userId: me.id } }),
+    db.notification.deleteMany({ where: { userId: me.id } }),
+    db.task.updateMany({
+      where: { assigneeId: me.id },
+      data: { assigneeId: null },
+    }),
+    db.user.delete({ where: { id: me.id } }),
+  ]);
+
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(SESSION_COOKIE, "", { ...sessionCookieOptions, maxAge: 0 });
+  return res;
 }

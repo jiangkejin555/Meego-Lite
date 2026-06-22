@@ -9,8 +9,7 @@ export type ViewKey =
   | "tasks"
   | "projects"
   | "notifications"
-  | "settings"
-  | "users";
+  | "profile";
 
 export interface CurrentUser {
   id: string;
@@ -30,7 +29,7 @@ interface TaskFilter {
 }
 
 interface AppState {
-  // Current logged-in user (simulated — picked from users list)
+  // Current logged-in user (hydrated from GET /api/auth/me)
   currentUser: CurrentUser | null;
   setCurrentUser: (u: CurrentUser | null) => void;
 
@@ -87,9 +86,22 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: "meego-lite-storage", // localStorage 里的 key
+      version: 1,
       storage: createJSONStorage(() => localStorage),
-      // 只有这些字段会被持久化，避免把 filter, modal状态 也缓存下来
-      partialize: (state) => ({ currentUser: state.currentUser, view: state.view }),
+      // 只持久化视图选择；currentUser 始终来自 /api/auth/me，不缓存避免与会话不一致。
+      partialize: (state) => ({ view: state.view }),
+      // 旧版本可能持久化了已废弃的视图（settings/users）或 currentUser，做一次清洗。
+      migrate: (persisted) => {
+        const valid: ViewKey[] = [
+          "dashboard",
+          "tasks",
+          "projects",
+          "notifications",
+          "profile",
+        ];
+        const view = (persisted as { view?: ViewKey } | null)?.view;
+        return { view: view && valid.includes(view) ? view : "dashboard" };
+      },
     }
   )
 );

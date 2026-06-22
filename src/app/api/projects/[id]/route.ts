@@ -3,14 +3,18 @@ import { db } from "@/lib/db";
 import type { ProjectPriority, ProjectStatus } from "@/lib/constants";
 import { PROJECT_NAME_MAX_LENGTH } from "@/lib/project-utils";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
+import { getSessionUser, unauthorized } from "@/lib/auth";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
 // GET /api/projects/[id]
-export async function GET(_req: NextRequest, ctx: RouteContext) {
+export async function GET(req: NextRequest, ctx: RouteContext) {
   await ensureDatabaseSchema();
+
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
 
   const { id } = await ctx.params;
   const project = await db.project.findUnique({
@@ -23,12 +27,24 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
   if (!project) {
     return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   }
+
+  const isVisible =
+    project.creatorId === me.id ||
+    project.owners.some((o) => o.id === me.id);
+  if (!isVisible) {
+    // Don't leak existence to unauthorized users.
+    return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  }
+
   return NextResponse.json({ project });
 }
 
 // PUT /api/projects/[id]
 export async function PUT(req: NextRequest, ctx: RouteContext) {
   await ensureDatabaseSchema();
+
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
 
   const { id } = await ctx.params;
   const body = await req.json();
@@ -38,6 +54,13 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     include: { owners: { select: { id: true, deletedAt: true } } },
   });
   if (!existing) {
+    return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  }
+
+  const isVisible =
+    existing.creatorId === me.id ||
+    existing.owners.some((o) => o.id === me.id);
+  if (!isVisible) {
     return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   }
 
@@ -86,7 +109,11 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
         );
       }
     }
-    data.owners = { set: uniqueOwnerIds.map((oid) => ({ id: oid })) };
+    // The creator must always remain an owner.
+    const finalOwnerIds = existing.creatorId
+      ? Array.from(new Set([existing.creatorId, ...uniqueOwnerIds]))
+      : uniqueOwnerIds;
+    data.owners = { set: finalOwnerIds.map((oid) => ({ id: oid })) };
   }
 
   const project = await db.project.update({
@@ -102,10 +129,29 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
 }
 
 // DELETE /api/projects/[id]
-export async function DELETE(_req: NextRequest, ctx: RouteContext) {
+export async function DELETE(req: NextRequest, ctx: RouteContext) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const { id } = await ctx.params;
+  const existing = await db.project.findUnique({
+    where: { id },
+    select: { id: true, creatorId: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  }
+
+  // Only the creator may delete the project.
+  if (existing.creatorId !== me.id) {
+    return NextResponse.json(
+      { error: "只有项目创建者可以删除项目" },
+      { status: 403 }
+    );
+  }
+
   try {
     // Detach tasks from this project before deleting
     await db.task.updateMany({

@@ -8,42 +8,56 @@ import {
 } from "@/lib/constants";
 import { sendNotification } from "@/lib/notification";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
+import { getSessionUser, getVisibleProjectIds, unauthorized } from "@/lib/auth";
 
 // GET /api/tasks — list with optional filters
 export async function GET(req: NextRequest) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const url = req.nextUrl;
   const status = url.searchParams.get("status") || undefined;
   const priority = url.searchParams.get("priority") || undefined;
   const assigneeId = url.searchParams.get("assigneeId") || undefined;
+  // creatorId is accepted only as an extra filter — never as a权限边界.
   const creatorId = url.searchParams.get("creatorId") || undefined;
   const projectId = url.searchParams.get("projectId") || undefined;
   const search = url.searchParams.get("search") || undefined;
   const tag = url.searchParams.get("tag") || undefined;
-  const mine = url.searchParams.get("mine"); // current user id
 
-  const where: Record<string, unknown> = {};
-  if (status && status !== "all") where.status = status;
-  if (priority && priority !== "all") where.priority = priority;
-  if (assigneeId && assigneeId !== "all") where.assigneeId = assigneeId;
-  if (creatorId && creatorId !== "all") where.creatorId = creatorId;
+  // A task is visible if I created it (incl. project-less tasks) or it belongs
+  // to a project I can see.
+  const visibleProjectIds = await getVisibleProjectIds(me.id);
+  const visibility = {
+    OR: [{ creatorId: me.id }, { projectId: { in: visibleProjectIds } }],
+  };
+
+  // Combine visibility with the other filters via AND so that the search OR
+  // can never override the visibility OR.
+  const andConditions: Record<string, unknown>[] = [visibility];
+  if (status && status !== "all") andConditions.push({ status });
+  if (priority && priority !== "all") andConditions.push({ priority });
+  if (assigneeId && assigneeId !== "all") andConditions.push({ assigneeId });
+  if (creatorId && creatorId !== "all") andConditions.push({ creatorId });
   if (projectId && projectId !== "all") {
-    where.projectId = projectId === "none" ? null : projectId;
+    andConditions.push({ projectId: projectId === "none" ? null : projectId });
   }
-  if (tag && tag !== "all") where.tags = { contains: JSON.stringify(tag) };
-  if (mine) {
-    where.OR = [{ assigneeId: mine }, { creatorId: mine }];
+  if (tag && tag !== "all") {
+    andConditions.push({ tags: { contains: JSON.stringify(tag) } });
   }
   if (search) {
-    where.OR = [
-      { title: { contains: search } },
-      { description: { contains: search } },
-    ];
+    andConditions.push({
+      OR: [
+        { title: { contains: search } },
+        { description: { contains: search } },
+      ],
+    });
   }
 
   const tasks = await db.task.findMany({
-    where,
+    where: { AND: andConditions },
     include: {
       creator: true,
       assignee: true,
@@ -76,6 +90,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const body = await req.json();
 
   // Basic validation
@@ -85,28 +102,39 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!body.creatorId) {
-    return NextResponse.json(
-      { error: "创建人不能为空" },
-      { status: 400 }
-    );
-  }
-  const creator = await db.user.findFirst({
-    where: { id: body.creatorId, deletedAt: null },
-  });
-  if (!creator) {
-    return NextResponse.json(
-      { error: "创建人不存在或已删除" },
-      { status: 400 }
-    );
-  }
-  if (body.assigneeId) {
-    const assignee = await db.user.findFirst({
-      where: { id: body.assigneeId, deletedAt: null },
-    });
-    if (!assignee) {
+
+  const projectId: string | null = body.projectId || null;
+
+  // If a project is specified, it must be visible to me.
+  if (projectId) {
+    const visibleProjectIds = await getVisibleProjectIds(me.id);
+    if (!visibleProjectIds.includes(projectId)) {
       return NextResponse.json(
-        { error: "责任人不存在或已删除" },
+        { error: "无权在该项目下创建任务" },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Validate the assignee against the assignment scope.
+  const assigneeId: string | null = body.assigneeId || null;
+  if (assigneeId) {
+    if (projectId) {
+      const project = await db.project.findUnique({
+        where: { id: projectId },
+        include: { owners: { select: { id: true } } },
+      });
+      const allowed = new Set<string>(project?.owners.map((o) => o.id) ?? []);
+      if (project?.creatorId) allowed.add(project.creatorId);
+      if (!allowed.has(assigneeId)) {
+        return NextResponse.json(
+          { error: "只能指派给该项目的授权成员" },
+          { status: 400 }
+        );
+      }
+    } else if (assigneeId !== me.id) {
+      return NextResponse.json(
+        { error: "无项目任务只能指派给自己" },
         { status: 400 }
       );
     }
@@ -125,9 +153,9 @@ export async function POST(req: NextRequest) {
         typeof body.estimatedHours === "number" ? body.estimatedHours : null,
       actualHours:
         typeof body.actualHours === "number" ? body.actualHours : null,
-      creatorId: body.creatorId,
-      assigneeId: body.assigneeId || null,
-      projectId: body.projectId || null,
+      creatorId: me.id,
+      assigneeId,
+      projectId,
     },
     include: { creator: true, assignee: true },
   });

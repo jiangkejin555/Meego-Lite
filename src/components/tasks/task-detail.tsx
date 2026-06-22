@@ -16,6 +16,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
+import { Markdown } from "@/components/ui/markdown";
 import {
   Collapsible,
   CollapsibleContent,
@@ -459,11 +460,13 @@ export function TaskDetailDrawer() {
           {/* Description */}
           <div className="space-y-3">
             <div className="text-sm font-medium text-muted-foreground">任务描述</div>
-            <div className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
-              {task.description || (
+            {task.description ? (
+              <Markdown>{task.description}</Markdown>
+            ) : (
+              <div className="text-sm leading-relaxed">
                 <span className="text-muted-foreground italic">无描述</span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
           <Separator className="bg-border/50" />

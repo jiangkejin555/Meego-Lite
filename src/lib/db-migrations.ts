@@ -8,7 +8,9 @@ type RawSqlDb = {
 type TableColumn = { name: string };
 
 const USER_DELETED_AT_COLUMN = "deletedAt";
+const USER_PASSWORD_HASH_COLUMN = "passwordHash";
 const TASK_PROJECT_ID_COLUMN = "projectId";
+const PROJECT_CREATOR_ID_COLUMN = "creatorId";
 
 const globalForMigrations = globalThis as unknown as {
   meegoLiteSchemaMigrationPromise?: Promise<void>;
@@ -25,6 +27,20 @@ export async function ensureUserDeletedAtColumn(client: RawSqlDb) {
 
   await client.$executeRawUnsafe(
     'ALTER TABLE "User" ADD COLUMN "deletedAt" DATETIME'
+  );
+}
+
+export async function ensureUserPasswordHashColumn(client: RawSqlDb) {
+  const columns = await client.$queryRawUnsafe<TableColumn[]>(
+    "PRAGMA table_info('User')"
+  );
+
+  if (columns.some((column) => column.name === USER_PASSWORD_HASH_COLUMN)) {
+    return;
+  }
+
+  await client.$executeRawUnsafe(
+    'ALTER TABLE "User" ADD COLUMN "passwordHash" TEXT'
   );
 }
 
@@ -55,6 +71,17 @@ export async function ensureProjectSchema(client: RawSqlDb) {
   if (!taskColumns.some((column) => column.name === TASK_PROJECT_ID_COLUMN)) {
     await client.$executeRawUnsafe(
       'ALTER TABLE "Task" ADD COLUMN "projectId" TEXT'
+    );
+  }
+
+  const projectColumns = await client.$queryRawUnsafe<TableColumn[]>(
+    "PRAGMA table_info('Project')"
+  );
+  if (
+    !projectColumns.some((column) => column.name === PROJECT_CREATOR_ID_COLUMN)
+  ) {
+    await client.$executeRawUnsafe(
+      'ALTER TABLE "Project" ADD COLUMN "creatorId" TEXT'
     );
   }
 
@@ -94,11 +121,31 @@ export async function ensureProgressSchema(client: RawSqlDb) {
   );
 }
 
+export async function ensureVerificationCodeSchema(client: RawSqlDb) {
+  if (!(await tableExists(client, "VerificationCode"))) {
+    await client.$executeRawUnsafe(`CREATE TABLE "VerificationCode" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "email" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "expiresAt" DATETIME NOT NULL,
+    "consumed" BOOLEAN NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`);
+  }
+
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "VerificationCode_email_purpose_index" ON "VerificationCode"("email","purpose")'
+  );
+}
+
 export function ensureDatabaseSchema() {
   globalForMigrations.meegoLiteSchemaMigrationPromise ??= (async () => {
     await ensureUserDeletedAtColumn(db);
+    await ensureUserPasswordHashColumn(db);
     await ensureProjectSchema(db);
     await ensureProgressSchema(db);
+    await ensureVerificationCodeSchema(db);
   })();
 
   return globalForMigrations.meegoLiteSchemaMigrationPromise;

@@ -60,12 +60,17 @@
       {
         "from": ".next/standalone/node_modules",
         "to": "app/node_modules",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "prisma",
         "to": "prisma",
-        "filter": ["schema.prisma", "dev.db"]
+        "filter": [
+          "schema.prisma",
+          "dev.db"
+        ]
       }
     ],
     "asarUnpack": [
@@ -83,7 +88,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "build/icon.ico"
@@ -129,6 +137,7 @@
     "@reactuses/core": "^6.0.5",
     "@tanstack/react-query": "^5.82.0",
     "@tanstack/react-table": "^8.21.3",
+    "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -136,6 +145,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.2",
     "input-otp": "^1.4.2",
+    "jose": "^6.2.3",
     "lucide-react": "^0.525.0",
     "next": "^16.1.1",
     "next-auth": "^4.24.11",
@@ -163,6 +173,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -69,6 +69,8 @@ describe("SQLite schema 自动升级", () => {
       expect.stringContaining('CREATE TABLE "Project"'),
       "PRAGMA table_info('Task')",
       'ALTER TABLE "Task" ADD COLUMN "projectId" TEXT',
+      "PRAGMA table_info('Project')",
+      'ALTER TABLE "Project" ADD COLUMN "creatorId" TEXT',
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '_ProjectOwners'",
       expect.stringContaining('CREATE TABLE "_ProjectOwners"'),
       'CREATE UNIQUE INDEX IF NOT EXISTS "_ProjectOwners_AB_unique" ON "_ProjectOwners"("A", "B")',

@@ -3,26 +3,39 @@ import { db } from "@/lib/db";
 import type { ProjectPriority, ProjectStatus } from "@/lib/constants";
 import { PROJECT_NAME_MAX_LENGTH } from "@/lib/project-utils";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
+import { getSessionUser, unauthorized } from "@/lib/auth";
 
 // GET /api/projects — list with optional filters
 export async function GET(req: NextRequest) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const url = req.nextUrl;
   const status = url.searchParams.get("status") || undefined;
   const search = url.searchParams.get("search") || undefined;
 
-  const where: Record<string, unknown> = {};
-  if (status && status !== "all") where.status = status;
+  // Visibility: only projects created by me or where I'm an owner.
+  const visibility = {
+    OR: [{ creatorId: me.id }, { owners: { some: { id: me.id } } }],
+  };
+
+  // Combine visibility with the other filters via AND so that the search OR
+  // can never override the visibility OR.
+  const andConditions: Record<string, unknown>[] = [visibility];
+  if (status && status !== "all") andConditions.push({ status });
   if (search) {
-    where.OR = [
-      { name: { contains: search } },
-      { description: { contains: search } },
-    ];
+    andConditions.push({
+      OR: [
+        { name: { contains: search } },
+        { description: { contains: search } },
+      ],
+    });
   }
 
   const projects = await db.project.findMany({
-    where,
+    where: { AND: andConditions },
     include: {
       owners: { select: { id: true, name: true, email: true, deletedAt: true } },
       _count: { select: { tasks: true } },
@@ -36,6 +49,9 @@ export async function GET(req: NextRequest) {
 // POST /api/projects — create a new project
 export async function POST(req: NextRequest) {
   await ensureDatabaseSchema();
+
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
 
   const body = await req.json();
 
@@ -65,15 +81,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // The creator is always an owner; merge & de-duplicate.
+  const allOwnerIds = Array.from(new Set([me.id, ...ownerIds]));
+
   const project = await db.project.create({
     data: {
       name,
       description: body.description?.trim() || null,
       status: (body.status as ProjectStatus) || "not_started",
       priority: (body.priority as ProjectPriority) || "p2",
-      owners: ownerIds.length
-        ? { connect: ownerIds.map((id) => ({ id })) }
-        : undefined,
+      creatorId: me.id,
+      owners: { connect: allOwnerIds.map((id) => ({ id })) },
     },
     include: {
       owners: { select: { id: true, name: true, email: true, deletedAt: true } },

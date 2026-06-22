@@ -6,7 +6,6 @@ import {
   FolderKanban,
   Bell,
   Settings,
-  Users,
   Plus,
 } from "lucide-react";
 import { useAppStore, type ViewKey } from "@/store/app-store";
@@ -19,8 +18,7 @@ const NAV: { key: ViewKey; label: string; icon: React.ElementType }[] = [
   { key: "tasks", label: "我的任务", icon: ListTodo },
   { key: "projects", label: "我的项目", icon: FolderKanban },
   { key: "notifications", label: "通知中心", icon: Bell },
-  { key: "users", label: "成员管理", icon: Users },
-  { key: "settings", label: "通知设置", icon: Settings },
+  { key: "profile", label: "个人设置", icon: Settings },
 ];
 
 async function fetchUnread(userId: string) {

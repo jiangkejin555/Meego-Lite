@@ -184,7 +184,7 @@ function getTransporter(): Transporter | null {
   return cachedTransporter;
 }
 
-async function sendEmail(
+export async function sendEmail(
   to: string,
   subject: string,
   content: string

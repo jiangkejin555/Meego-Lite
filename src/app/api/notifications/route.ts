@@ -1,20 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { ensureDatabaseSchema } from "@/lib/db-migrations";
+import { getSessionUser, unauthorized } from "@/lib/auth";
 
-// GET /api/notifications?userId=...&unreadOnly=1
+// GET /api/notifications?unreadOnly=1
 export async function GET(req: NextRequest) {
+  await ensureDatabaseSchema();
+
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const url = req.nextUrl;
-  const userId = url.searchParams.get("userId");
   const unreadOnly = url.searchParams.get("unreadOnly") === "1";
 
-  if (!userId) {
-    return NextResponse.json(
-      { error: "缺少 userId 参数" },
-      { status: 400 }
-    );
-  }
-
-  const where: Record<string, unknown> = { userId };
+  const where: Record<string, unknown> = { userId: me.id };
   if (unreadOnly) {
     where.AND = [
       { channel: "in_app" },
