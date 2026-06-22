@@ -28,6 +28,8 @@ interface TaskItem {
   priority: TaskPriority;
   deadline: string | null;
   progress: number;
+  latestProgressNote: string | null;
+  latestProgressPercent: number | null;
   tags: string[];
   creator: { id: string; name: string };
   assignee: { id: string; name: string } | null;
@@ -133,17 +135,21 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
             value={filter.tag}
             onValueChange={(v) => setFilter({ tag: v })}
           >
-            <SelectTrigger className="h-9 w-auto min-w-[110px] bg-card shadow-sm border-dashed">
-              <div className="flex items-center text-xs">
-                <span className="text-muted-foreground mr-1.5">标签:</span>
-                <SelectValue placeholder="全部" />
+            <SelectTrigger className="h-9 w-auto min-w-[110px] max-w-[180px] bg-card shadow-sm border-dashed">
+              <div className="flex min-w-0 items-center text-xs">
+                <span className="mr-1.5 shrink-0 text-muted-foreground">标签:</span>
+                <span className="min-w-0 truncate">
+                  <SelectValue placeholder="全部" />
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
               {tags.map((tag) => (
-                <SelectItem key={tag} value={tag}>
-                  {tag}
+                <SelectItem key={tag} value={tag} title={tag}>
+                  <span className="block max-w-[160px] truncate">
+                    {tag}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -153,10 +159,12 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
             value={filter.status}
             onValueChange={(v) => setFilter({ status: v as TaskStatus | "all" })}
           >
-            <SelectTrigger className="h-9 w-auto min-w-[110px] bg-card shadow-sm border-dashed">
-              <div className="flex items-center text-xs">
-                <span className="text-muted-foreground mr-1.5">状态:</span>
-                <SelectValue placeholder="全部" />
+            <SelectTrigger className="h-9 w-auto min-w-[110px] max-w-[180px] bg-card shadow-sm border-dashed">
+              <div className="flex min-w-0 items-center text-xs">
+                <span className="mr-1.5 shrink-0 text-muted-foreground">状态:</span>
+                <span className="min-w-0 truncate">
+                  <SelectValue placeholder="全部" />
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
@@ -173,10 +181,12 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
             value={filter.priority}
             onValueChange={(v) => setFilter({ priority: v as TaskPriority | "all" })}
           >
-            <SelectTrigger className="h-9 w-auto min-w-[110px] bg-card shadow-sm border-dashed">
-              <div className="flex items-center text-xs">
-                <span className="text-muted-foreground mr-1.5">优先级:</span>
-                <SelectValue placeholder="全部" />
+            <SelectTrigger className="h-9 w-auto min-w-[110px] max-w-[180px] bg-card shadow-sm border-dashed">
+              <div className="flex min-w-0 items-center text-xs">
+                <span className="mr-1.5 shrink-0 text-muted-foreground">优先级:</span>
+                <span className="min-w-0 truncate">
+                  <SelectValue placeholder="全部" />
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
@@ -192,17 +202,21 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
             value={filter.assigneeId}
             onValueChange={(v) => setFilter({ assigneeId: v })}
           >
-            <SelectTrigger className="h-9 w-auto min-w-[120px] bg-card shadow-sm border-dashed">
-              <div className="flex items-center text-xs">
-                <span className="text-muted-foreground mr-1.5">责任人:</span>
-                <SelectValue placeholder="全部" />
+            <SelectTrigger className="h-9 w-auto min-w-[120px] max-w-[180px] bg-card shadow-sm border-dashed">
+              <div className="flex min-w-0 items-center text-xs">
+                <span className="mr-1.5 shrink-0 text-muted-foreground">责任人:</span>
+                <span className="min-w-0 truncate">
+                  <SelectValue placeholder="全部" />
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">全部</SelectItem>
               {users.map((u) => (
-                <SelectItem key={u.id} value={u.id}>
-                  {u.name}
+                <SelectItem key={u.id} value={u.id} title={u.name}>
+                  <span className="block max-w-[160px] truncate">
+                    {u.name}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -215,7 +229,9 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
             <SelectTrigger className="h-9 w-[150px] bg-card shadow-sm border-dashed">
               <div className="flex min-w-0 items-center text-xs">
                 <span className="mr-1.5 shrink-0 text-muted-foreground">项目:</span>
-                <SelectValue placeholder="全部" />
+                <span className="min-w-0 truncate">
+                  <SelectValue placeholder="全部" />
+                </span>
               </div>
             </SelectTrigger>
             <SelectContent className="w-[180px]">

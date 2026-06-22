@@ -22,14 +22,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
+import { formatUserName } from "@/lib/users";
 import { format } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { X, Plus, Calendar as CalendarIcon, RotateCcw } from "lucide-react";
+import {
+  X,
+  Plus,
+  Calendar as CalendarIcon,
+  RotateCcw,
+  Pencil,
+  Trash2,
+  Check,
+} from "lucide-react";
 import {
   TASK_PRIORITY_LABEL,
   TASK_STATUS_LABEL,
@@ -76,7 +84,6 @@ interface TaskFormValues {
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string;
-  progress: number;
   tags: string[];
   estimatedHours: string;
   actualHours: string;
@@ -152,7 +159,6 @@ function buildInitialValues(
       status: "todo",
       priority: "p2",
       deadline: "",
-      progress: 0,
       tags: [],
       estimatedHours: "",
       actualHours: "",
@@ -166,7 +172,6 @@ function buildInitialValues(
     status: existing.status,
     priority: existing.priority,
     deadline: existing.deadline || "",
-    progress: existing.progress ?? 0,
     tags: existing.tags || [],
     estimatedHours:
       existing.estimatedHours != null ? String(existing.estimatedHours) : "",
@@ -195,7 +200,6 @@ function isTaskFormValues(x: unknown): x is TaskFormValues {
     typeof v.status === "string" &&
     typeof v.priority === "string" &&
     typeof v.deadline === "string" &&
-    typeof v.progress === "number" &&
     Array.isArray(v.tags) &&
     typeof v.estimatedHours === "string" &&
     typeof v.actualHours === "string" &&
@@ -247,8 +251,369 @@ function isDraftMeaningful(values: TaskFormValues): boolean {
     values.tags.length > 0 ||
     values.deadline !== "" ||
     values.estimatedHours !== "" ||
-    values.actualHours !== "" ||
-    values.progress !== 0
+    values.actualHours !== ""
+  );
+}
+
+// ===== 进度更新（完成进度）独立模块 =====
+// 该区域为进度的唯一写入入口，所有增删改均独立、即时提交（自己的 fetch），
+// 不依赖表单底部的“保存”按钮。
+
+interface ProgressUpdateItem {
+  id: string;
+  content: string;
+  percent: number | null;
+  createdAt: string;
+  user: { id: string; name: string; deletedAt?: string | null };
+}
+
+const PERCENT_PRESETS = [0, 25, 50, 75, 100];
+
+async function fetchProgressUpdates(
+  taskId: string
+): Promise<ProgressUpdateItem[]> {
+  const res = await fetch(`/api/progress?taskId=${taskId}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.updates as ProgressUpdateItem[];
+}
+
+async function createProgressUpdate(payload: {
+  taskId: string;
+  userId: string;
+  content: string;
+  percent?: number;
+}) {
+  const res = await fetch("/api/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || "添加失败");
+  }
+  return res.json();
+}
+
+async function patchProgressUpdate(
+  id: string,
+  payload: { userId: string; content?: string; percent?: number | null }
+) {
+  const res = await fetch(`/api/progress/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || "修改失败");
+  }
+  return res.json();
+}
+
+async function deleteProgressUpdate(id: string, userId: string) {
+  const res = await fetch(`/api/progress/${id}?userId=${userId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e.error || "删除失败");
+  }
+  return res.json();
+}
+
+// 百分比快捷选择 + 手动输入。percent 为 "" 表示不更新百分比。
+function PercentPicker({
+  percent,
+  onChange,
+}: {
+  percent: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs text-muted-foreground">百分比（可选）</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {PERCENT_PRESETS.map((p) => {
+          const selected = percent !== "" && Number(percent) === p;
+          return (
+            <Button
+              key={p}
+              type="button"
+              size="sm"
+              variant={selected ? "default" : "outline"}
+              className="h-7 px-2.5"
+              onClick={() => onChange(selected ? "" : String(p))}
+            >
+              {p}%
+            </Button>
+          );
+        })}
+        <Input
+          type="number"
+          min={0}
+          max={100}
+          placeholder="自定义"
+          className="h-7 w-20"
+          value={percent}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
+
+// 将百分比字符串转换为提交用的数值，空字符串返回 undefined（不更新进度）。
+function parsePercent(value: string): number | undefined {
+  if (value.trim() === "") return undefined;
+  const n = Number(value);
+  if (Number.isNaN(n)) return undefined;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+function ProgressSection({ taskId }: { taskId: string | null }) {
+  const currentUser = useAppStore((s) => s.currentUser);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [newContent, setNewContent] = useState("");
+  const [newPercent, setNewPercent] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [editingPercent, setEditingPercent] = useState("");
+
+  const { data: updates = [] } = useQuery({
+    queryKey: ["progress", taskId],
+    queryFn: () => fetchProgressUpdates(taskId!),
+    enabled: !!taskId,
+  });
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["progress", taskId] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    queryClient.invalidateQueries({ queryKey: ["task", taskId] });
+    queryClient.invalidateQueries({ queryKey: ["stats"] });
+  };
+
+  const addMutation = useMutation({
+    mutationFn: createProgressUpdate,
+    onSuccess: () => {
+      setNewContent("");
+      setNewPercent("");
+      invalidateAll();
+      toast({ title: "进度已添加" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "添加失败", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({
+      id,
+      userId,
+      content,
+      percent,
+    }: {
+      id: string;
+      userId: string;
+      content: string;
+      percent?: number;
+    }) => patchProgressUpdate(id, { userId, content, percent }),
+    onSuccess: () => {
+      setEditingId(null);
+      setEditingContent("");
+      setEditingPercent("");
+      invalidateAll();
+      toast({ title: "进度已更新" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "修改失败", description: e.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      deleteProgressUpdate(id, userId),
+    onSuccess: () => {
+      invalidateAll();
+      toast({ title: "进度已删除" });
+    },
+    onError: (e: Error) => {
+      toast({ title: "删除失败", description: e.message, variant: "destructive" });
+    },
+  });
+
+  // 新建任务时（无 taskId）不能写进度，给出提示。
+  if (!taskId) {
+    return (
+      <div className="space-y-2">
+        <Label>完成进度</Label>
+        <p className="text-xs text-muted-foreground">
+          保存任务后可在编辑页填写进度更新
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <Label>完成进度</Label>
+
+      {/* 新增进度 */}
+      {currentUser && (
+        <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+          <Textarea
+            className="min-h-[72px] resize-y bg-background"
+            placeholder="填写本次进度，例如：今天发了 A/B/C 三个红人的影片，还剩 7 个"
+            value={newContent}
+            onChange={(e) => setNewContent(e.target.value)}
+          />
+          <PercentPicker percent={newPercent} onChange={setNewPercent} />
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              size="sm"
+              disabled={!newContent.trim() || addMutation.isPending}
+              onClick={() =>
+                addMutation.mutate({
+                  taskId,
+                  userId: currentUser.id,
+                  content: newContent.trim(),
+                  percent: parsePercent(newPercent),
+                })
+              }
+            >
+              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              {addMutation.isPending ? "添加中..." : "添加进度"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 历史记录 */}
+      {updates.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-6 bg-muted/30 rounded-lg border border-dashed">
+          暂无进度记录
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {updates.map((u) => {
+            const isOwner = currentUser?.id === u.user.id;
+            const isEditing = editingId === u.id;
+            return (
+              <div
+                key={u.id}
+                className="rounded-lg border bg-card p-3 space-y-2 shadow-sm"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-foreground">
+                      {formatUserName(u.user)}
+                    </span>
+                    {u.percent != null && (
+                      <Badge variant="secondary" className="text-[10px] font-normal shadow-none tabular-nums">
+                        {u.percent}%
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(u.createdAt).toLocaleString("zh-CN")}
+                    </span>
+                    {isOwner && !isEditing && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          title="编辑"
+                          onClick={() => {
+                            setEditingId(u.id);
+                            setEditingContent(u.content);
+                            setEditingPercent(
+                              u.percent != null ? String(u.percent) : ""
+                            );
+                          }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-muted-foreground hover:text-rose-600"
+                          title="删除"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => {
+                            if (confirm("确定删除这条进度记录吗？")) {
+                              deleteMutation.mutate({
+                                id: u.id,
+                                userId: currentUser!.id,
+                              });
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {isEditing ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      className="min-h-[72px] resize-y bg-background"
+                      value={editingContent}
+                      onChange={(e) => setEditingContent(e.target.value)}
+                    />
+                    <PercentPicker
+                      percent={editingPercent}
+                      onChange={setEditingPercent}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditingContent("");
+                          setEditingPercent("");
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5 mr-1" />
+                        取消
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={
+                          !editingContent.trim() || editMutation.isPending
+                        }
+                        onClick={() =>
+                          editMutation.mutate({
+                            id: u.id,
+                            userId: currentUser!.id,
+                            content: editingContent.trim(),
+                            percent: parsePercent(editingPercent),
+                          })
+                        }
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1" />
+                        保存
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed text-foreground">
+                    {u.content}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -380,7 +745,6 @@ function TaskFormBody({
       status: form.status,
       priority: form.priority,
       deadline: form.deadline ? new Date(form.deadline).toISOString() : null,
-      progress: form.progress,
       tags: form.tags,
       estimatedHours: form.estimatedHours ? Number(form.estimatedHours) : null,
       actualHours: form.actualHours ? Number(form.actualHours) : null,
@@ -646,24 +1010,10 @@ function TaskFormBody({
                 </PopoverContent>
               </Popover>
             </div>
-
-            <div className="space-y-3 pt-1">
-              <div className="flex items-center justify-between">
-                <Label>完成进度</Label>
-                <span className="text-sm font-medium tabular-nums">
-                  {form.progress}%
-                </span>
-              </div>
-              <Slider
-                value={[form.progress]}
-                onValueChange={(v) => setForm({ ...form, progress: v[0] })}
-                min={0}
-                max={100}
-                step={5}
-                className="py-1"
-              />
-            </div>
           </div>
+
+          {/* 完成进度 / 进度更新 —— 独立保存，不随表单保存按钮提交 */}
+          <ProgressSection taskId={taskId} />
 
           {/* Tags */}
           <div className="space-y-2">

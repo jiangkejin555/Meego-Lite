@@ -75,10 +75,30 @@ export async function ensureProjectSchema(client: RawSqlDb) {
   );
 }
 
+export async function ensureProgressSchema(client: RawSqlDb) {
+  if (!(await tableExists(client, "ProgressUpdate"))) {
+    await client.$executeRawUnsafe(`CREATE TABLE "ProgressUpdate" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "taskId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "percent" INTEGER,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ProgressUpdate_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "ProgressUpdate_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+)`);
+  }
+
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "ProgressUpdate_taskId_index" ON "ProgressUpdate"("taskId")'
+  );
+}
+
 export function ensureDatabaseSchema() {
   globalForMigrations.meegoLiteSchemaMigrationPromise ??= (async () => {
     await ensureUserDeletedAtColumn(db);
     await ensureProjectSchema(db);
+    await ensureProgressSchema(db);
   })();
 
   return globalForMigrations.meegoLiteSchemaMigrationPromise;

@@ -27,35 +27,26 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Search,
-  MoreHorizontal,
-  Pencil,
-  Trash2,
-  Eye,
   Plus,
-  RotateCcw,
   AlertTriangle,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 import {
   TASK_PRIORITY_COLOR,
   TASK_PRIORITY_LABEL,
   TASK_STATUS_COLOR,
   TASK_STATUS_LABEL,
+  TASK_STATUS_ORDER,
   tagColor,
   type TaskPriority,
   type TaskStatus,
@@ -72,6 +63,8 @@ interface TaskItem {
   priority: TaskPriority;
   deadline: string | null;
   progress: number;
+  latestProgressNote: string | null;
+  latestProgressPercent: number | null;
   tags: string[];
   creator: { id: string; name: string; deletedAt?: string | null };
   assignee: { id: string; name: string; deletedAt?: string | null } | null;
@@ -102,9 +95,38 @@ async function fetchUsers() {
   return data.users as UserItem[];
 }
 
-async function deleteTask(id: string) {
-  const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-  if (!res.ok) throw new Error("Failed to delete task");
+async function updateTaskStatus(id: string, status: TaskStatus) {
+  const res = await fetch(`/api/tasks/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error("Failed to update status");
+  return res.json();
+}
+
+async function updateProgress(
+  taskId: string,
+  userId: string,
+  percent: number | null,
+  content: string
+) {
+  const res = await fetch("/api/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskId, userId, content, percent }),
+  });
+  if (!res.ok) {
+    let message = "Failed to update progress";
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch {
+      // ignore parse error
+    }
+    throw new Error(message);
+  }
+  return res.json();
 }
 
 function deadlineStatus(
@@ -149,52 +171,137 @@ function deadlineStatus(
 export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoading: boolean, users: UserItem[] }) {
   const openTaskForm = useAppStore((s) => s.openTaskForm);
   const setSelectedTaskId = useAppStore((s) => s.setSelectedTaskId);
+  const currentUser = useAppStore((s) => s.currentUser);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
+  const [pendingProgressId, setPendingProgressId] = useState<string | null>(
+    null
+  );
+  const [progressOpenId, setProgressOpenId] = useState<string | null>(null);
+  const [progressNote, setProgressNote] = useState("");
 
-  const deleteMutation = useMutation({
-    mutationFn: deleteTask,
-    onSuccess: () => {
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: TaskStatus }) =>
+      updateTaskStatus(id, status),
+    onMutate: ({ id }) => setPendingStatusId(id),
+    onSuccess: (_data, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["users"] });
       queryClient.invalidateQueries({ queryKey: ["stats"] });
-      toast({ title: "任务已删除" });
-      setDeleteId(null);
+      toast({
+        title: "状态已更新",
+        description: `已更新为「${TASK_STATUS_LABEL[status]}」`,
+      });
     },
     onError: (e: Error) => {
       toast({
-        title: "删除失败",
+        title: "状态更新失败",
         description: e.message,
         variant: "destructive",
       });
     },
+    onSettled: () => setPendingStatusId(null),
   });
+
+  const progressMutation = useMutation({
+    mutationFn: ({
+      taskId,
+      userId,
+      percent,
+      content,
+    }: {
+      taskId: string;
+      userId: string;
+      percent: number | null;
+      content: string;
+    }) => updateProgress(taskId, userId, percent, content),
+    onMutate: ({ taskId }) => setPendingProgressId(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      setProgressOpenId(null);
+      setProgressNote("");
+      toast({ title: "进度已更新" });
+    },
+    onError: (e: Error) => {
+      toast({
+        title: "进度更新失败",
+        description: e.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => setPendingProgressId(null),
+  });
+
+  const submitProgress = (taskId: string, percent: number) => {
+    if (!currentUser) {
+      toast({
+        title: "无法更新进度",
+        description: "请先选择当前用户",
+        variant: "destructive",
+      });
+      return;
+    }
+    const note = progressNote.trim();
+    progressMutation.mutate({
+      taskId,
+      userId: currentUser.id,
+      percent,
+      content: note,
+    });
+  };
+
+  const submitProgressNote = (taskId: string, currentPercent: number) => {
+    if (!currentUser) {
+      toast({
+        title: "无法更新进度",
+        description: "请先选择当前用户",
+        variant: "destructive",
+      });
+      return;
+    }
+    const note = progressNote.trim();
+    if (!note) {
+      toast({
+        title: "无法提交",
+        description: "请填写进度说明",
+        variant: "destructive",
+      });
+      return;
+    }
+    progressMutation.mutate({
+      taskId,
+      userId: currentUser.id,
+      percent: currentPercent,
+      content: note,
+    });
+  };
+
+  const PROGRESS_OPTIONS = [0, 25, 50, 75, 100];
 
   return (
     <div className="space-y-4">
       {/* Table */}
       <div className="rounded-lg border overflow-hidden">
         <div className="overflow-x-auto">
-          <Table className="table-fixed min-w-[1170px]">
+          <Table className="table-fixed min-w-[1200px]">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[240px]">任务</TableHead>
-                <TableHead className="w-[160px]">项目</TableHead>
-                <TableHead className="w-[180px]">标签</TableHead>
+                <TableHead className="w-[220px]">任务</TableHead>
+                <TableHead className="w-[140px]">项目</TableHead>
+                <TableHead className="w-[160px]">标签</TableHead>
                 <TableHead className="w-[100px]">状态</TableHead>
+                <TableHead className="w-[260px]">进度</TableHead>
                 <TableHead className="w-[100px]">优先级</TableHead>
                 <TableHead className="w-[120px]">截止时间</TableHead>
                 <TableHead className="w-[140px]">责任人</TableHead>
-                <TableHead className="w-[80px]">进度</TableHead>
-                <TableHead className="w-[50px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    <TableCell colSpan={9}>
+                    <TableCell colSpan={8}>
                       <Skeleton className="h-8" />
                     </TableCell>
                   </TableRow>
@@ -202,7 +309,7 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
               ) : tasks.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={8}
                     className="text-center py-20"
                   >
                     <div className="flex flex-col items-center justify-center space-y-3">
@@ -266,15 +373,163 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
                           <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={cn(
-                            "border-0",
-                            TASK_STATUS_COLOR[t.status]
-                          )}
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              disabled={
+                                pendingStatusId === t.id &&
+                                statusMutation.isPending
+                              }
+                              className="group inline-flex items-center gap-1 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60"
+                              title="点击修改状态"
+                            >
+                              <Badge
+                                className={cn(
+                                  "border-0",
+                                  TASK_STATUS_COLOR[t.status]
+                                )}
+                              >
+                                {TASK_STATUS_LABEL[t.status]}
+                              </Badge>
+                              <ChevronDown className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-36">
+                            <DropdownMenuLabel>修改状态</DropdownMenuLabel>
+                            {TASK_STATUS_ORDER.map((s) => (
+                              <DropdownMenuItem
+                                key={s}
+                                disabled={s === t.status}
+                                onClick={() => {
+                                  if (s !== t.status) {
+                                    statusMutation.mutate({
+                                      id: t.id,
+                                      status: s,
+                                    });
+                                  }
+                                }}
+                                className="gap-2"
+                              >
+                                <Badge
+                                  className={cn(
+                                    "border-0",
+                                    TASK_STATUS_COLOR[s]
+                                  )}
+                                >
+                                  {TASK_STATUS_LABEL[s]}
+                                </Badge>
+                                {s === t.status && (
+                                  <Check className="ml-auto h-4 w-4" />
+                                )}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Popover
+                          open={progressOpenId === t.id}
+                          onOpenChange={(open) => {
+                            setProgressOpenId(open ? t.id : null);
+                            setProgressNote("");
+                          }}
                         >
-                          {TASK_STATUS_LABEL[t.status]}
-                        </Badge>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              disabled={
+                                pendingProgressId === t.id &&
+                                progressMutation.isPending
+                              }
+                              className="group flex w-full min-w-0 items-center gap-1.5 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-60"
+                              title={
+                                t.latestProgressNote
+                                  ? `${t.latestProgressPercent ?? t.progress}% ${t.latestProgressNote}`
+                                  : "点击更新进度"
+                              }
+                            >
+                              <span className="shrink-0 text-xs font-medium tabular-nums">
+                                {t.progress}%
+                              </span>
+                              {t.latestProgressNote ? (
+                                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                                  {t.latestProgressNote}
+                                </span>
+                              ) : (
+                                <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                                  暂无进度描述
+                                </span>
+                              )}
+                              <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent
+                            align="start"
+                            className="w-64 space-y-3"
+                          >
+                            <div className="text-sm font-medium">更新进度</div>
+                            <Input
+                              value={
+                                progressOpenId === t.id ? progressNote : ""
+                              }
+                              onChange={(e) =>
+                                setProgressNote(e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  submitProgressNote(t.id, t.progress);
+                                }
+                              }}
+                              placeholder="进度说明"
+                              className="h-8 text-xs"
+                            />
+                            <div className="grid grid-cols-5 gap-1">
+                              {PROGRESS_OPTIONS.map((p) => (
+                                <Button
+                                  key={p}
+                                  type="button"
+                                  size="sm"
+                                  variant={
+                                    p === t.progress ? "secondary" : "outline"
+                                  }
+                                  disabled={
+                                    p === t.progress ||
+                                    (pendingProgressId === t.id &&
+                                      progressMutation.isPending)
+                                  }
+                                  className="h-7 px-0 text-xs tabular-nums"
+                                  onClick={() => submitProgress(t.id, p)}
+                                >
+                                  {p === t.progress ? (
+                                    <Check className="h-3.5 w-3.5" />
+                                  ) : (
+                                    p
+                                  )}
+                                </Button>
+                              ))}
+                            </div>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 w-full text-xs"
+                              disabled={
+                                !progressNote.trim() ||
+                                (pendingProgressId === t.id &&
+                                  progressMutation.isPending)
+                              }
+                              onClick={() => submitProgressNote(t.id, t.progress)}
+                            >
+                              提交描述（当前进度 {t.progress}%）
+                            </Button>
+                            <p className="text-[11px] leading-tight text-muted-foreground">
+                              选择百分比会同步进度并新增一条描述；「提交描述」会沿用当前进度，仅记录新的描述。
+                            </p>
+                          </PopoverContent>
+                        </Popover>
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -319,49 +574,6 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
                           </span>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <span className="text-xs tabular-nums">
-                          {t.progress}%
-                        </span>
-                      </TableCell>
-                      <TableCell
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>操作</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => setSelectedTaskId(t.id)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              查看详情
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => openTaskForm(t.id)}
-                            >
-                              <Pencil className="h-4 w-4 mr-2" />
-                              编辑
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-rose-600 focus:text-rose-700"
-                              onClick={() => setDeleteId(t.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              删除
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -374,30 +586,6 @@ export function TaskList({ tasks, isLoading, users }: { tasks: TaskItem[], isLoa
       <div className="text-xs text-muted-foreground">
         共 {tasks.length} 条结果
       </div>
-
-      <AlertDialog
-        open={!!deleteId}
-        onOpenChange={(o) => !o && setDeleteId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确定删除该任务？</AlertDialogTitle>
-            <AlertDialogDescription>
-              此操作不可撤销，任务及其评论、通知记录将被一并删除。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-rose-600 hover:bg-rose-700"
-              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
-              disabled={deleteMutation.isPending}
-            >
-              {deleteMutation.isPending ? "删除中..." : "确认删除"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

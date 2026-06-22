@@ -48,15 +48,26 @@ export async function GET(req: NextRequest) {
       creator: true,
       assignee: true,
       project: { select: { id: true, name: true } },
+      progressUpdates: {
+        where: { content: { not: "" } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { content: true, percent: true },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
-  // Parse tags
-  const result = tasks.map((t) => ({
-    ...t,
-    tags: parseStringArray(t.tags),
-  }));
+  // Parse tags and surface the latest progress description (only entries with content)
+  const result = tasks.map(({ progressUpdates, ...t }) => {
+    const latest = progressUpdates[0];
+    return {
+      ...t,
+      tags: parseStringArray(t.tags),
+      latestProgressNote: latest?.content ?? null,
+      latestProgressPercent: latest?.percent ?? null,
+    };
+  });
 
   return NextResponse.json({ tasks: result });
 }

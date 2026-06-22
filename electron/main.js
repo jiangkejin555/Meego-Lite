@@ -83,6 +83,10 @@ function startNextServer(dbPath) {
       PORT: String(PORT),
       HOSTNAME: '127.0.0.1',
       DATABASE_URL: `file:${dbPath}`,
+      // 让后端 Node 子进程改用操作系统信任库校验 TLS 证书。
+      // 否则在带证书拦截的网络（公司代理/安全软件）下，nodemailer 发 SMTP 会报
+      // "unable to verify the first certificate"。系统库里通常已含代理根证书。
+      NODE_USE_SYSTEM_CA: '1',
     },
   });
 

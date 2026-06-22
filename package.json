@@ -7,7 +7,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "next dev -p 3000 > dev.log 2>&1",
-    "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && bun run prune:standalone && bun run env:standalone",
+    "build": "next build --webpack && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && bun run prune:standalone && bun run env:standalone",
     "env:standalone": "bash scripts/env-standalone.sh",
     "prune:standalone": "bash scripts/prune-standalone.sh",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",

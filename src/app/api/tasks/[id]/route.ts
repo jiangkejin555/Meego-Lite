@@ -27,6 +27,10 @@ export async function GET(_req: NextRequest, ctx: RouteContext) {
         include: { user: true },
         orderBy: { createdAt: "asc" },
       },
+      progressUpdates: {
+        include: { user: true },
+        orderBy: { createdAt: "desc" },
+      },
       notifications: {
         orderBy: { createdAt: "desc" },
         take: 30,
@@ -106,6 +110,7 @@ export async function DELETE(_req: NextRequest, ctx: RouteContext) {
 
   await db.$transaction([
     db.comment.deleteMany({ where: { taskId: id } }),
+    db.progressUpdate.deleteMany({ where: { taskId: id } }),
     db.notification.deleteMany({ where: { taskId: id } }),
     db.task.delete({ where: { id } }),
   ]);

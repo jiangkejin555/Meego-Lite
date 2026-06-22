@@ -17,6 +17,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Tag,
   Pencil,
   MessageSquare,
@@ -26,6 +41,7 @@ import {
   Trash2,
   Check,
   X,
+  ChevronDown,
 } from "lucide-react";
 import {
   TASK_PRIORITY_COLOR,
@@ -65,6 +81,13 @@ interface TaskDetail {
     createdAt: string;
     user: { id: string; name: string; deletedAt?: string | null };
   }>;
+  progressUpdates: Array<{
+    id: string;
+    content: string;
+    percent: number | null;
+    createdAt: string;
+    user: { id: string; name: string; deletedAt?: string | null };
+  }>;
   notifications: Array<{
     id: string;
     type: string;
@@ -83,6 +106,12 @@ async function fetchTask(id: string) {
   if (!res.ok) throw new Error("Failed to fetch task");
   const data = await res.json();
   return data.task as TaskDetail;
+}
+
+async function deleteTask(id: string) {
+  const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete task");
+  return res.json();
 }
 
 async function addComment(taskId: string, userId: string, content: string) {
@@ -129,12 +158,33 @@ export function TaskDetailDrawer() {
   const [comment, setComment] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: task } = useQuery({
     queryKey: ["task", taskId],
     queryFn: () => fetchTask(taskId!),
     enabled: !!taskId,
     refetchInterval: 30_000,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteTask(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      toast({ title: "任务已删除" });
+      setDeleteOpen(false);
+      setSelectedTaskId(null);
+    },
+    onError: (e: Error) => {
+      toast({
+        title: "删除失败",
+        description: e.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const commentMutation = useMutation({
@@ -196,6 +246,7 @@ export function TaskDetailDrawer() {
   const open = !!taskId;
 
   return (
+    <>
     <Sheet open={open} onOpenChange={(o) => !o && setSelectedTaskId(null)}>
       <SheetContent className="w-full sm:max-w-xl overflow-y-auto p-0 flex flex-col gap-0">
         {/* Top Action Bar */}
@@ -212,6 +263,15 @@ export function TaskDetailDrawer() {
             >
               <Pencil className="h-3.5 w-3.5 mr-1.5" />
               编辑
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setDeleteOpen(true)}
+              className="h-8 shadow-none text-rose-600 hover:text-rose-700"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              删除
             </Button>
             <SheetClose asChild>
               <Button size="sm" variant="outline" className="h-8 shadow-none">
@@ -318,12 +378,63 @@ export function TaskDetailDrawer() {
           </div>
 
           {/* Progress */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground font-medium">完成进度</span>
-              <span className="tabular-nums font-medium">{task.progress}%</span>
+          <div className="space-y-4">
+            {/* Overview row + bar */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground font-medium">完成进度</span>
+                <span className="tabular-nums font-medium">{task.progress}%</span>
+              </div>
+              <Progress value={task.progress} className="h-2" />
             </div>
-            <Progress value={task.progress} className="h-2" />
+
+            {(() => {
+              const notes = task.progressUpdates.filter(
+                (u) => u.content.trim() !== ""
+              );
+              if (notes.length === 0) {
+                return (
+                  <p className="text-xs text-muted-foreground italic">
+                    暂无进度描述
+                  </p>
+                );
+              }
+              return (
+                <Collapsible open={historyOpen} onOpenChange={setHistoryOpen}>
+                  <div className="relative pl-4 border-l border-border/60">
+                    <div className="space-y-4">
+                      <ProgressTimelineItem update={notes[0]} latest />
+                      <CollapsibleContent className="space-y-4">
+                        {notes.slice(1).map((update) => (
+                          <ProgressTimelineItem
+                            key={update.id}
+                            update={update}
+                          />
+                        ))}
+                      </CollapsibleContent>
+                    </div>
+                  </div>
+                  {notes.length > 1 && (
+                    <CollapsibleTrigger asChild>
+                      <button
+                        type="button"
+                        className="mt-3 flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <ChevronDown
+                          className={cn(
+                            "h-3.5 w-3.5 transition-transform",
+                            historyOpen && "rotate-180"
+                          )}
+                        />
+                        {historyOpen
+                          ? "收起历史描述"
+                          : `查看历史描述 (${notes.length - 1})`}
+                      </button>
+                    </CollapsibleTrigger>
+                  )}
+                </Collapsible>
+              );
+            })()}
           </div>
 
           {/* Tags */}
@@ -567,6 +678,68 @@ export function TaskDetailDrawer() {
         </div>
       </SheetContent>
     </Sheet>
+
+    <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>确定删除该任务？</AlertDialogTitle>
+          <AlertDialogDescription>
+            此操作不可撤销，任务及其评论、进度、通知记录将被一并删除。
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>取消</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-rose-600 hover:bg-rose-700"
+            onClick={() => deleteMutation.mutate(task.id)}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending ? "删除中..." : "确认删除"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
+  );
+}
+
+function ProgressTimelineItem({
+  update,
+  latest = false,
+}: {
+  update: TaskDetail["progressUpdates"][number];
+  latest?: boolean;
+}) {
+  return (
+    <div className="relative">
+      <span
+        className={cn(
+          "absolute -left-[21px] top-1.5 h-2 w-2 rounded-full ring-2 ring-background",
+          latest ? "bg-emerald-500" : "bg-muted-foreground/40"
+        )}
+      />
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">
+          {formatUserName(update.user)}
+        </span>
+        {update.percent != null && (
+          <span className="font-medium text-emerald-600 tabular-nums">
+            {update.percent}%
+          </span>
+        )}
+        <span className="ml-auto shrink-0">
+          {new Date(update.createdAt).toLocaleString("zh-CN", {
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </span>
+      </div>
+      <p className="mt-1 text-sm whitespace-pre-wrap leading-relaxed text-foreground">
+        {update.content}
+      </p>
+    </div>
   );
 }
 

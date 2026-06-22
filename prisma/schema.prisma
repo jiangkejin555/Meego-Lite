@@ -31,6 +31,7 @@ model User {
   assignedTasks   Task[]   @relation("TaskAssignee")
   ownedProjects   Project[] @relation("ProjectOwners")
   comments        Comment[]
+  progressUpdates ProgressUpdate[]
   notifications   Notification[]
   deletedAt       DateTime?
   createdAt       DateTime @default(now())
@@ -74,6 +75,7 @@ model Task {
   assignee       User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
   project        Project?     @relation(fields: [projectId], references: [id])
   comments       Comment[]
+  progressUpdates ProgressUpdate[]
   notifications  Notification[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -84,6 +86,18 @@ model Comment {
   taskId    String
   userId    String
   content   String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model ProgressUpdate {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  content   String
+  // percent: optional 0-100; when present, drives the task's current progress
+  percent   Int?
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
