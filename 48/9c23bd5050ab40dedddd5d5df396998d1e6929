@@ -1,0 +1,32 @@
+src/lib/db-migrations.ts
+  s_b69399d2c0d7bd::t_1a4030af1a05e7 188-190,217-218
+  s_689a09c9dbc374::t_9cd711a6dc32d9 58
+  s_689a09c9dbc374::t_ec1804d99fd9d5 214,219
+  s_689a09c9dbc374::t_ba3af2c0aed557 101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "489c23bd5050ab40dedddd5d5df396998d1e6929",
+  "prompts": {},
+  "sessions": {
+    "s_689a09c9dbc374": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a3911890239e74be2ca5a88",
+        "model": "openrouter-3o__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    },
+    "s_b69399d2c0d7bd": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a38bf790239e74be2ca4e7a",
+        "model": "openrouter-2o__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
