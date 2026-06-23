@@ -1,6 +1,9 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "@/lib/db";
 import type { NotificationChannel, NotificationType } from "@/lib/constants";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("notification");
 
 interface SendArgs {
   userId: string;
@@ -192,19 +195,50 @@ export async function sendEmail(
   if (!to) return { ok: false, error: "收件人邮箱为空" };
   const transporter = getTransporter();
   if (!transporter) {
+    log.warn("未配置 SMTP，跳过邮件发送", { to });
     return { ok: false, error: "未配置 SMTP（请检查 .env 中的 SMTP_HOST/USER/PASS）" };
   }
   const from = process.env.SMTP_FROM || process.env.SMTP_USER!;
+  const startedAt = Date.now();
   try {
     const html = `<div style="font-family:-apple-system,Segoe UI,sans-serif;line-height:1.6;color:#222"><h3 style="margin:0 0 12px">${escapeHtml(
       subject
     )}</h3><pre style="white-space:pre-wrap;font-family:inherit;margin:0">${escapeHtml(
       content
     )}</pre></div>`;
-    await transporter.sendMail({ from, to, subject, text: content, html });
+    const info = await transporter.sendMail({ from, to, subject, text: content, html });
+    const acceptedCount = info.accepted?.length ?? 0;
+    const rejectedCount = info.rejected?.length ?? 0;
+    if (rejectedCount > 0 || acceptedCount === 0) {
+      log.error("邮件被 SMTP 拒收", {
+        to,
+        subject,
+        messageId: info.messageId,
+        accepted: info.accepted,
+        rejected: info.rejected,
+        response: info.response,
+        ms: Date.now() - startedAt,
+      });
+      return {
+        ok: false,
+        error: `SMTP 拒收收件人${
+          rejectedCount > 0 ? `：${(info.rejected as unknown[]).join(", ")}` : ""
+        }${info.response ? `（${info.response}）` : ""}`,
+      };
+    }
+    log.info("邮件发送成功", {
+      to,
+      subject,
+      messageId: info.messageId,
+      accepted: acceptedCount,
+      rejected: rejectedCount,
+      ms: Date.now() - startedAt,
+    });
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+    const error = e instanceof Error ? e.message : String(e);
+    log.error("邮件发送失败", { to, subject, error, ms: Date.now() - startedAt });
+    return { ok: false, error };
   }
 }
 

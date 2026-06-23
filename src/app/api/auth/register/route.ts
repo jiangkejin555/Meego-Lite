@@ -8,6 +8,9 @@ import {
   signSession,
 } from "@/lib/auth";
 import { consumeVerificationCode } from "@/lib/verification";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("register");
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
@@ -43,11 +46,13 @@ export async function POST(req: NextRequest) {
     where: { email, deletedAt: null },
   });
   if (existingUser) {
+    log.warn("注册失败：邮箱已被注册", { email });
     return NextResponse.json({ error: "邮箱已被注册" }, { status: 400 });
   }
 
   const valid = await consumeVerificationCode(email, code, "register");
   if (!valid) {
+    log.warn("注册失败：验证码无效或已过期", { email });
     return NextResponse.json(
       { error: "验证码无效或已过期" },
       { status: 400 }
@@ -64,6 +69,7 @@ export async function POST(req: NextRequest) {
   const { passwordHash: _omit, ...safeUser } = user;
   void _omit;
 
+  log.info("注册成功", { email, userId: user.id });
   const res = NextResponse.json({ user: safeUser });
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
   return res;

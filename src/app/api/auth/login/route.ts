@@ -8,6 +8,9 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { consumeVerificationCode } from "@/lib/verification";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("login");
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -37,19 +40,23 @@ export async function POST(req: NextRequest) {
   if (mode === "password") {
     const password = typeof body?.password === "string" ? body.password : "";
     if (!user || !user.passwordHash) {
+      log.warn("登录失败：用户不存在或未设置密码", { email, mode });
       return invalidCredentials();
     }
     const ok = await verifyPassword(password, user.passwordHash);
     if (!ok) {
+      log.warn("登录失败：密码错误", { email, mode });
       return invalidCredentials();
     }
   } else {
     const code = typeof body?.code === "string" ? body.code.trim() : "";
     if (!user) {
+      log.warn("登录失败：用户不存在", { email, mode });
       return invalidCredentials();
     }
     const valid = await consumeVerificationCode(email, code, "login");
     if (!valid) {
+      log.warn("登录失败：验证码无效或已过期", { email, mode });
       return invalidCredentials();
     }
   }
@@ -59,6 +66,7 @@ export async function POST(req: NextRequest) {
   const { passwordHash: _omit, ...safeUser } = user;
   void _omit;
 
+  log.info("登录成功", { email, mode, userId: user.id });
   const res = NextResponse.json({ user: safeUser });
   res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
   return res;
