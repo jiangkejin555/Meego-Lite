@@ -177,6 +177,11 @@ build: install-full ## 构建项目
 	@bunx prisma generate
 	@printf "$(CYAN)>> 构建 Next.js...$(RESET)\n"
 	@bun run build
+	@printf "$(CYAN)>> 复制 static 和 public 到 standalone...$(RESET)\n"
+	@if [ -d .next/standalone ]; then \
+		cp -r .next/static .next/standalone/.next/ 2>/dev/null || true; \
+		cp -r public .next/standalone/ 2>/dev/null || true; \
+	fi
 	@printf "$(GREEN)✓ 构建完成$(RESET)\n"
 
 clean: ## 清理 node_modules 和构建产物
@@ -246,6 +251,10 @@ monit: ## PM2 实时监控（CPU / 内存）
 # Nginx 配置模板（使用 define 块定义多行内容）
 # ==============================================================================
 define NGINX_TEMP_CONF
+map $$http_upgrade $$connection_upgrade {
+    default upgrade;
+    ''      close;
+}
 server {
     listen $(TEMP_PORT);
     server_name _;
@@ -260,7 +269,7 @@ server {
         proxy_pass http://127.0.0.1:$(APP_PORT);
         proxy_http_version 1.1;
         proxy_set_header Upgrade $$http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection $$connection_upgrade;
         proxy_set_header Host $$host;
         proxy_set_header X-Real-IP $$remote_addr;
         proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
@@ -271,6 +280,10 @@ endef
 export NGINX_TEMP_CONF
 
 define NGINX_PROD_CONF
+map $$http_upgrade $$connection_upgrade {
+    default upgrade;
+    ''      close;
+}
 server {
     listen 80;
     server_name $(DOMAIN) www.$(DOMAIN);
@@ -292,7 +305,7 @@ server {
         proxy_pass http://127.0.0.1:$(APP_PORT);
         proxy_http_version 1.1;
         proxy_set_header Upgrade $$http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection $$connection_upgrade;
         proxy_set_header Host $$host;
         proxy_set_header X-Real-IP $$remote_addr;
         proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
