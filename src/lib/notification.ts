@@ -221,9 +221,8 @@ export async function sendEmail(
       });
       return {
         ok: false,
-        error: `SMTP 拒收收件人${
-          rejectedCount > 0 ? `：${(info.rejected as unknown[]).join(", ")}` : ""
-        }${info.response ? `（${info.response}）` : ""}`,
+        error: `SMTP 拒收收件人${rejectedCount > 0 ? `：${(info.rejected as unknown[]).join(", ")}` : ""
+          }${info.response ? `（${info.response}）` : ""}`,
       };
     }
     log.info("邮件发送成功", {
