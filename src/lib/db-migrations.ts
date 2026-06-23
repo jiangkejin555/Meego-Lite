@@ -7,42 +7,9 @@ type RawSqlDb = {
 
 type TableColumn = { name: string };
 
-const USER_DELETED_AT_COLUMN = "deletedAt";
-const USER_PASSWORD_HASH_COLUMN = "passwordHash";
-const TASK_PROJECT_ID_COLUMN = "projectId";
-const PROJECT_CREATOR_ID_COLUMN = "creatorId";
-
 const globalForMigrations = globalThis as unknown as {
   meegoLiteSchemaMigrationPromise?: Promise<void>;
 };
-
-export async function ensureUserDeletedAtColumn(client: RawSqlDb) {
-  const columns = await client.$queryRawUnsafe<TableColumn[]>(
-    "PRAGMA table_info('User')"
-  );
-
-  if (columns.some((column) => column.name === USER_DELETED_AT_COLUMN)) {
-    return;
-  }
-
-  await client.$executeRawUnsafe(
-    'ALTER TABLE "User" ADD COLUMN "deletedAt" DATETIME'
-  );
-}
-
-export async function ensureUserPasswordHashColumn(client: RawSqlDb) {
-  const columns = await client.$queryRawUnsafe<TableColumn[]>(
-    "PRAGMA table_info('User')"
-  );
-
-  if (columns.some((column) => column.name === USER_PASSWORD_HASH_COLUMN)) {
-    return;
-  }
-
-  await client.$executeRawUnsafe(
-    'ALTER TABLE "User" ADD COLUMN "passwordHash" TEXT'
-  );
-}
 
 async function tableExists(client: RawSqlDb, tableName: string) {
   const tables = await client.$queryRawUnsafe<TableColumn[]>(
@@ -50,6 +17,72 @@ async function tableExists(client: RawSqlDb, tableName: string) {
   );
 
   return tables.length > 0;
+}
+
+async function getTableColumns(client: RawSqlDb, tableName: string) {
+  return client.$queryRawUnsafe<TableColumn[]>(
+    `PRAGMA table_info('${tableName}')`
+  );
+}
+
+async function ensureColumn(
+  client: RawSqlDb,
+  tableName: string,
+  columnName: string,
+  columnDefinition: string
+) {
+  // 仅在表存在时才尝试加列；表不存在时由各自的 ensureXxxSchema 负责建表
+  if (!(await tableExists(client, tableName))) {
+    return;
+  }
+  const columns = await getTableColumns(client, tableName);
+  if (columns.some((column) => column.name === columnName)) {
+    return;
+  }
+  await client.$executeRawUnsafe(
+    `ALTER TABLE "${tableName}" ADD COLUMN ${columnDefinition}`
+  );
+}
+
+export async function ensureUserSchema(client: RawSqlDb) {
+  // User 表的所有可选/有默认值的新增字段
+  await ensureColumn(client, "User", "deletedAt", '"deletedAt" DATETIME');
+  await ensureColumn(client, "User", "passwordHash", '"passwordHash" TEXT');
+  await ensureColumn(client, "User", "feishuId", '"feishuId" TEXT');
+  await ensureColumn(client, "User", "wecomId", '"wecomId" TEXT');
+  await ensureColumn(
+    client,
+    "User",
+    "notifyEmail",
+    '"notifyEmail" BOOLEAN NOT NULL DEFAULT 1'
+  );
+  await ensureColumn(
+    client,
+    "User",
+    "notifyFeishu",
+    '"notifyFeishu" BOOLEAN NOT NULL DEFAULT 0'
+  );
+  await ensureColumn(
+    client,
+    "User",
+    "notifyWeCom",
+    '"notifyWeCom" BOOLEAN NOT NULL DEFAULT 0'
+  );
+  await ensureColumn(client, "User", "feishuWebhook", '"feishuWebhook" TEXT');
+  await ensureColumn(client, "User", "wecomWebhook", '"wecomWebhook" TEXT');
+  await ensureColumn(
+    client,
+    "User",
+    "leadTimeMinutes",
+    '"leadTimeMinutes" INTEGER NOT NULL DEFAULT 60'
+  );
+}
+
+export async function ensureTaskSchema(client: RawSqlDb) {
+  await ensureColumn(client, "Task", "projectId", '"projectId" TEXT');
+  await ensureColumn(client, "Task", "tags", '"tags" TEXT');
+  await ensureColumn(client, "Task", "estimatedHours", '"estimatedHours" REAL');
+  await ensureColumn(client, "Task", "actualHours", '"actualHours" REAL');
 }
 
 export async function ensureProjectSchema(client: RawSqlDb) {
@@ -65,25 +98,7 @@ export async function ensureProjectSchema(client: RawSqlDb) {
 )`);
   }
 
-  const taskColumns = await client.$queryRawUnsafe<TableColumn[]>(
-    "PRAGMA table_info('Task')"
-  );
-  if (!taskColumns.some((column) => column.name === TASK_PROJECT_ID_COLUMN)) {
-    await client.$executeRawUnsafe(
-      'ALTER TABLE "Task" ADD COLUMN "projectId" TEXT'
-    );
-  }
-
-  const projectColumns = await client.$queryRawUnsafe<TableColumn[]>(
-    "PRAGMA table_info('Project')"
-  );
-  if (
-    !projectColumns.some((column) => column.name === PROJECT_CREATOR_ID_COLUMN)
-  ) {
-    await client.$executeRawUnsafe(
-      'ALTER TABLE "Project" ADD COLUMN "creatorId" TEXT'
-    );
-  }
+  await ensureColumn(client, "Project", "creatorId", '"creatorId" TEXT');
 
   if (!(await tableExists(client, "_ProjectOwners"))) {
     await client.$executeRawUnsafe(`CREATE TABLE "_ProjectOwners" (
@@ -99,6 +114,27 @@ export async function ensureProjectSchema(client: RawSqlDb) {
   );
   await client.$executeRawUnsafe(
     'CREATE INDEX IF NOT EXISTS "_ProjectOwners_B_index" ON "_ProjectOwners"("B")'
+  );
+}
+
+export async function ensureCommentSchema(client: RawSqlDb) {
+  if (!(await tableExists(client, "Comment"))) {
+    await client.$executeRawUnsafe(`CREATE TABLE "Comment" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "taskId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Comment_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Comment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+)`);
+  }
+
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "Comment_taskId_index" ON "Comment"("taskId")'
+  );
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "Comment_userId_index" ON "Comment"("userId")'
   );
 }
 
@@ -121,6 +157,37 @@ export async function ensureProgressSchema(client: RawSqlDb) {
   );
 }
 
+export async function ensureNotificationSchema(client: RawSqlDb) {
+  if (!(await tableExists(client, "Notification"))) {
+    await client.$executeRawUnsafe(`CREATE TABLE "Notification" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "taskId" TEXT,
+    "type" TEXT NOT NULL,
+    "channel" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "sentAt" DATETIME,
+    "readAt" DATETIME,
+    "error" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "Notification_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+)`);
+  }
+
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "Notification_userId_index" ON "Notification"("userId")'
+  );
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "Notification_taskId_index" ON "Notification"("taskId")'
+  );
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "Notification_status_index" ON "Notification"("status")'
+  );
+}
+
 export async function ensureVerificationCodeSchema(client: RawSqlDb) {
   if (!(await tableExists(client, "VerificationCode"))) {
     await client.$executeRawUnsafe(`CREATE TABLE "VerificationCode" (
@@ -140,13 +207,25 @@ export async function ensureVerificationCodeSchema(client: RawSqlDb) {
 }
 
 export function ensureDatabaseSchema() {
-  globalForMigrations.meegoLiteSchemaMigrationPromise ??= (async () => {
-    await ensureUserDeletedAtColumn(db);
-    await ensureUserPasswordHashColumn(db);
-    await ensureProjectSchema(db);
-    await ensureProgressSchema(db);
-    await ensureVerificationCodeSchema(db);
-  })();
+  if (!globalForMigrations.meegoLiteSchemaMigrationPromise) {
+    const promise = (async () => {
+      // 顺序：先建表 / 加表级字段，再补可选列
+      await ensureUserSchema(db);
+      await ensureProjectSchema(db);
+      await ensureTaskSchema(db);
+      await ensureCommentSchema(db);
+      await ensureProgressSchema(db);
+      await ensureNotificationSchema(db);
+      await ensureVerificationCodeSchema(db);
+    })();
+
+    // 失败时清空缓存，避免一次失败后所有请求永久卡死
+    promise.catch(() => {
+      globalForMigrations.meegoLiteSchemaMigrationPromise = undefined;
+    });
+
+    globalForMigrations.meegoLiteSchemaMigrationPromise = promise;
+  }
 
   return globalForMigrations.meegoLiteSchemaMigrationPromise;
 }

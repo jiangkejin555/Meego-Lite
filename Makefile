@@ -220,7 +220,8 @@ db-backup: ## 备份数据库到 $(BACKUP_DIR)
 start: ## 启动应用（PM2）
 	@printf "$(CYAN)>> 启动应用...$(RESET)\n"
 	@pm2 describe $(APP_NAME) >/dev/null 2>&1 && pm2 restart $(APP_NAME) || \
-		pm2 start "bun .next/standalone/server.js" --name $(APP_NAME) \
+		pm2 start .next/standalone/server.js --name $(APP_NAME) \
+			--interpreter node \
 			--env NODE_ENV=production \
 			--env HOSTNAME=127.0.0.1 \
 			--env PORT=$(APP_PORT)
