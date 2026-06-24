@@ -110,6 +110,13 @@
 - **WHEN** 用户名下已无自己创建的项目和任务并确认注销
 - **THEN** 系统硬删除该用户及其个人关联数据（评论、进度更新、通知、项目授权关系；被指派任务的 assignee 置空），并清除会话
 
+### Requirement: 登录/注册页面视觉一致性
+登录与注册页面 SHALL 与项目整体设计语言（shadcn/ui + Radix + Tailwind v4 + lucide-react、现有配色与排版）保持一致，并在实现阶段使用 ui-ux-pro-max skill 指导设计。
+
+#### Scenario: 风格一致
+- **WHEN** 用户访问登录/注册页面
+- **THEN** 页面复用现有 UI 组件与设计 token，视觉风格与应用内其他页面一致，不引入与整体不符的样式
+
 ## MODIFIED Requirements
 
 ### Requirement: 项目可见性与授权（原"项目负责人"）

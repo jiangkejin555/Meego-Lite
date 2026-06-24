@@ -105,7 +105,7 @@ model ProgressUpdate {
   id        String   @id @default(cuid())
   taskId    String
   userId    String
-  status    String
+  status    String   @default("pending")
   content   String
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
