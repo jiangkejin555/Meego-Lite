@@ -1,0 +1,14 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "560cb2040d8276f7b1e9215f3ae08703e7b404ec",
+  "prompts": {},
+  "humans": {
+    "h_ffff03b1e83f00": {
+      "author": "jiangkejin <jiangkejin@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
