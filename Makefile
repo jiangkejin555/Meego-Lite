@@ -67,15 +67,15 @@ first-deploy: system-deps swap registry-config install build db-init nginx-temp 
 	@printf "  查看日志：$(YELLOW)make logs$(RESET)\n"
 	@printf "  备案通过后开 HTTPS：$(YELLOW)make ssl DOMAIN=你的域名.com$(RESET)\n\n"
 
-update: db-backup ## 日常更新：备份 + 拉代码 + 装依赖 + 同步表结构 + 构建 + 重启
+update: db-backup ## 日常更新：备份 + 拉代码 + 装依赖 + 执行迁移 + 构建 + 重启
 	@printf "$(CYAN)>> 拉取最新代码...$(RESET)\n"
 	@git pull
-	@$(MAKE) db-push
+	@$(MAKE) db-migrate
 	@$(MAKE) build
 	@$(MAKE) restart
 	@printf "$(GREEN)✓ 更新完成$(RESET)\n"
 
-deploy: db-push build restart ## 简版部署：同步表结构+构建+重启（不拉代码、不备份）
+deploy: db-migrate build restart ## 简版部署：执行迁移+构建+重启（不拉代码、不备份）
 	@printf "$(GREEN)✓ 部署完成$(RESET)\n"
 
 # ==============================================================================
@@ -198,7 +198,17 @@ db-init: ## 初始化数据库 + WAL 模式（首次部署用）
 	@sqlite3 $(DB_PATH) "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;" || true
 	@printf "$(GREEN)✓ 数据库初始化完成$(RESET)\n"
 
-db-push: ## 同步 schema.prisma 到数据库（保留已有数据，安全）
+db-migrate: ## 执行 Prisma 迁移（生产环境安全，自动备份）
+	@printf "$(CYAN)>> 备份数据库...$(RESET)\n"
+	@$(MAKE) db-backup
+	@printf "$(CYAN)>> 执行数据库迁移（prisma migrate deploy）...$(RESET)\n"
+	@DATABASE_URL="file:$(DB_PATH)" bunx prisma generate
+	@DATABASE_URL="file:$(DB_PATH)" bunx prisma migrate deploy
+	@printf "$(GREEN)✓ 数据库迁移完成$(RESET)\n"
+
+db-push: ## [开发环境] 同步 schema.prisma 到数据库（谨慎使用，可能丢数据）
+	@printf "$(YELLOW)⚠️ 警告：db-push 可能导致数据丢失，生产环境请使用 make db-migrate$(RESET)\n"
+	@read -p "确认继续? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
 	@printf "$(CYAN)>> 同步数据库表结构（prisma db push）...$(RESET)\n"
 	@DATABASE_URL="file:$(DB_PATH)" bunx prisma generate
 	@DATABASE_URL="file:$(DB_PATH)" bunx prisma db push --skip-generate --accept-data-loss=false

@@ -26,6 +26,7 @@ import {
   LayoutDashboard,
   ListTodo,
   FolderKanban,
+  FileText,
   Bell,
   Settings,
   Menu,
@@ -41,8 +42,9 @@ import type { ViewKey } from "@/store/app-store";
 
 const NAV: { key: ViewKey; label: string; icon: React.ElementType }[] = [
   { key: "dashboard", label: "仪表盘", icon: LayoutDashboard },
-  { key: "tasks", label: "我的任务", icon: ListTodo },
   { key: "projects", label: "我的项目", icon: FolderKanban },
+  { key: "tasks", label: "我的任务", icon: ListTodo },
+  { key: "reports", label: "我的报告", icon: FileText },
   { key: "notifications", label: "通知中心", icon: Bell },
   { key: "profile", label: "个人设置", icon: Settings },
 ];

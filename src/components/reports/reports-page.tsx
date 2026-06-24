@@ -97,13 +97,10 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4 h-[calc(100vh-9rem)]">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-lg font-semibold">我的报告</h1>
-          <p className="text-sm text-muted-foreground">
-            基于近期任务与进度，由 AI 生成日报 / 周报
-          </p>
-        </div>
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          基于近期任务与进度，由 AI 生成日报 / 周报
+        </p>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

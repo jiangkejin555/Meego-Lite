@@ -30,6 +30,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
+
+import {
   Plus,
   AlertTriangle,
   Check,
@@ -69,6 +76,24 @@ interface TaskItem {
   project: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
+}
+
+
+async function createProgressUpdate(payload: {
+  taskId: string;
+  userId: string;
+  content: string;
+}) {
+  const res = await fetch("/api/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "Failed to add progress update");
+  }
+  return res.json();
 }
 
 async function updateTaskStatus(id: string, status: TaskStatus) {
@@ -159,6 +184,94 @@ function compareTasks(a: TaskItem, b: TaskItem, key: SortKey): number {
   }
 }
 
+
+function ProgressCell({ t }: { t: TaskItem }) {
+  const currentUser = useAppStore((s) => s.currentUser);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [content, setContent] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: ({ taskId, content }: { taskId: string; content: string }) =>
+      createProgressUpdate({
+        taskId,
+        userId: currentUser!.id,
+        content,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      toast({ title: "过程记录已添加" });
+      setContent("");
+      setOpen(false);
+    },
+    onError: (e: Error) => {
+      toast({ title: "添加失败", description: e.message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <TableCell className="w-[260px] max-w-[260px]">
+      <div className="flex items-center gap-2 w-full">
+        <div
+          className="flex-1 truncate text-xs text-muted-foreground"
+          title={
+            t.latestProgressDescription ??
+            t.latestProgressNote ??
+            "暂无进度描述"
+          }
+        >
+          {t.latestProgressDescription ??
+            t.latestProgressNote ??
+            "暂无进度描述"}
+        </div>
+        {currentUser && (
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="快捷添加记录"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 p-3" onClick={(e) => e.stopPropagation()}>
+              <div className="space-y-3">
+                <div className="text-sm font-medium">添加过程记录</div>
+                <Textarea
+                  className="min-h-[72px] resize-y text-xs"
+                  placeholder="填写本次进度描述或过程记录..."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    disabled={!content.trim() || mutation.isPending}
+                    onClick={() => {
+                      if (!content.trim()) return;
+                      mutation.mutate({
+                        taskId: t.id,
+                        content: content.trim(),
+                      });
+                    }}
+                  >
+                    {mutation.isPending ? "提交中..." : "提交"}
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+    </TableCell>
+  );
+}
+
 export function TaskList({
   tasks,
   isLoading,
@@ -166,11 +279,16 @@ export function TaskList({
   tasks: TaskItem[];
   isLoading: boolean;
 }) {
+  
   const openTaskForm = useAppStore((s) => s.openTaskForm);
+  const currentUser = useAppStore((s) => s.currentUser);
+
   const setSelectedTaskId = useAppStore((s) => s.setSelectedTaskId);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
   const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
+
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
@@ -192,6 +310,8 @@ export function TaskList({
       return compareTasks(a, b, sortKey) * factor;
     });
   }, [tasks, sortKey, sortDir]);
+
+  
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: TaskStatus }) =>
@@ -297,7 +417,7 @@ export function TaskList({
                   return (
                     <TableRow
                       key={t.id}
-                      className="cursor-pointer hover:bg-muted/40"
+                      className="group cursor-pointer hover:bg-muted/40"
                       onClick={() => setSelectedTaskId(t.id)}
                     >
                       <TableCell className="w-[240px] max-w-[240px]">
@@ -398,20 +518,7 @@ export function TaskList({
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
-                      <TableCell className="w-[260px] max-w-[260px]">
-                        <div
-                          className="truncate text-xs text-muted-foreground"
-                          title={
-                            t.latestProgressDescription ??
-                            t.latestProgressNote ??
-                            "暂无进度描述"
-                          }
-                        >
-                          {t.latestProgressDescription ??
-                            t.latestProgressNote ??
-                            "暂无进度描述"}
-                        </div>
-                      </TableCell>
+                      <ProgressCell t={t} />
                       <TableCell>
                         <Badge
                           className={cn(
