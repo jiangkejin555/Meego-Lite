@@ -83,10 +83,12 @@ export async function getSessionUser(req: NextRequest) {
 }
 
 export function unauthorized() {
-  return NextResponse.json(
+  const res = NextResponse.json(
     { error: "未登录或会话已过期" },
     { status: 401 }
   );
+  res.cookies.delete(SESSION_COOKIE);
+  return res;
 }
 
 export async function getVisibleProjectIds(

@@ -137,10 +137,20 @@ async function deleteMe(id: string) {
 }
 
 export function ProfileSettings() {
-  const { data: me, isLoading } = useQuery({
+  const { data: me, isLoading, isFetched } = useQuery({
     queryKey: ["profile-me"],
     queryFn: fetchMe,
   });
+
+  const router = useRouter();
+  const setCurrentUser = useAppStore((s) => s.setCurrentUser);
+
+  useEffect(() => {
+    if (isFetched && !me) {
+      setCurrentUser(null);
+      router.replace("/login");
+    }
+  }, [isFetched, me, router, setCurrentUser]);
 
   const [accountOpen, setAccountOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
@@ -174,7 +184,7 @@ export function ProfileSettings() {
     return (
       <Card>
         <CardContent className="py-10 text-center text-sm text-muted-foreground">
-          {isLoading ? "加载中..." : "无法加载账号信息，请重新登录"}
+          {isLoading ? "加载中..." : "正在跳转到登录页面..."}
         </CardContent>
       </Card>
     );

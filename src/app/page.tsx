@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
@@ -39,17 +40,22 @@ export default function Home() {
   // Hydrate the current user from the session. middleware already guards the
   // page, so an unauthenticated visitor is redirected to /login before reaching
   // here; this just syncs the store with the authenticated identity.
-  const { data: me } = useQuery({
+  const { data: me, isFetched } = useQuery({
     queryKey: ["me"],
     queryFn: fetchMe,
     staleTime: 5 * 60 * 1000,
   });
 
+  const router = useRouter();
+
   useEffect(() => {
-    if (me && me.id !== currentUser?.id) {
+    if (isFetched && !me) {
+      setCurrentUser(null);
+      router.replace("/login");
+    } else if (me && me.id !== currentUser?.id) {
       setCurrentUser(me);
     }
-  }, [me, currentUser?.id, setCurrentUser]);
+  }, [me, isFetched, currentUser?.id, setCurrentUser, router]);
 
   // Periodic deadline check (every 5 minutes)
   useEffect(() => {

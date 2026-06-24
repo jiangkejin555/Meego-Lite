@@ -32,12 +32,16 @@ export async function middleware(req: NextRequest) {
 
   if (!isAuthed) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
+      const res = NextResponse.json(
         { error: "未登录或会话已过期" },
         { status: 401 }
       );
+      if (token) res.cookies.delete(SESSION_COOKIE);
+      return res;
     }
-    return NextResponse.redirect(new URL("/login", req.url));
+    const res = NextResponse.redirect(new URL("/login", req.url));
+    if (token) res.cookies.delete(SESSION_COOKIE);
+    return res;
   }
 
   return NextResponse.next();
