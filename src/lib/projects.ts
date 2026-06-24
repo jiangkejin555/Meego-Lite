@@ -8,6 +8,8 @@ export interface ProjectItem {
   status: ProjectStatus;
   priority: ProjectPriority;
   owners: { id: string; name: string; email: string; deletedAt?: string | null }[];
+  creatorId: string | null;
+  creator: { id: string; name: string; deletedAt?: string | null } | null;
   _count: { tasks: number };
   createdAt: string;
   updatedAt: string;

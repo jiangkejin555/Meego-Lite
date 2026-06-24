@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
     where: { AND: andConditions },
     include: {
       owners: { select: { id: true, name: true, email: true, deletedAt: true } },
+      creator: { select: { id: true, name: true, deletedAt: true } },
       _count: { select: { tasks: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -95,6 +96,7 @@ export async function POST(req: NextRequest) {
     },
     include: {
       owners: { select: { id: true, name: true, email: true, deletedAt: true } },
+      creator: { select: { id: true, name: true, deletedAt: true } },
       _count: { select: { tasks: true } },
     },
   });

@@ -8,6 +8,10 @@ import {
 } from "@/lib/constants";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
 import { getSessionUser, getVisibleProjectIds, unauthorized } from "@/lib/auth";
+import {
+  buildTaskStatusChangedProgressContent,
+  createTaskProgressUpdate,
+} from "@/lib/progress";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -36,6 +40,8 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
         orderBy: { createdAt: "desc" },
       },
       notifications: {
+        // 仅展示站内通道（in_app）的通知；其它通道的记录只作为后台投递审计
+        where: { channel: "in_app" },
         orderBy: { createdAt: "desc" },
         take: 30,
       },
@@ -90,7 +96,6 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
   if (body.deadline !== undefined) {
     data.deadline = body.deadline ? new Date(body.deadline) : null;
   }
-  if (body.progress !== undefined) data.progress = Number(body.progress);
   if (body.tags !== undefined) data.tags = stringifyArray(body.tags);
   if (body.estimatedHours !== undefined)
     data.estimatedHours = body.estimatedHours;
@@ -139,10 +144,28 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     data.assigneeId = assigneeId;
   }
 
-  const task = await db.task.update({
-    where: { id },
-    data,
-    include: { creator: true, assignee: true },
+  const nextStatus: TaskStatus | undefined =
+    body.status !== undefined ? (body.status as TaskStatus) : undefined;
+  const shouldCreateStatusProgress =
+    nextStatus !== undefined && nextStatus !== existing.status;
+
+  const task = await db.$transaction(async (tx) => {
+    const updatedTask = await tx.task.update({
+      where: { id },
+      data,
+      include: { creator: true, assignee: true },
+    });
+
+    if (shouldCreateStatusProgress && nextStatus !== undefined) {
+      await createTaskProgressUpdate(tx, {
+        taskId: id,
+        userId: me.id,
+        status: nextStatus,
+        content: buildTaskStatusChangedProgressContent(nextStatus),
+      });
+    }
+
+    return updatedTask;
   });
 
   return NextResponse.json({

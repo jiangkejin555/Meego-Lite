@@ -43,6 +43,7 @@ export function ProjectsPage() {
   const setView = useAppStore((s) => s.setView);
   const setFilter = useAppStore((s) => s.setFilter);
   const resetFilter = useAppStore((s) => s.resetFilter);
+  const currentUser = useAppStore((s) => s.currentUser);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<ProjectItem | null>(null);
@@ -108,7 +109,14 @@ export function ProjectsPage() {
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {projects.map((p) => (
+          {projects.map((p) => {
+            const isCreator = !!currentUser && p.creatorId === currentUser.id;
+            const ownershipLabel = !p.creatorId
+              ? "未知来源"
+              : isCreator
+              ? "我创建的"
+              : `${p.creator ? formatUserName(p.creator) : "他人"} 授权`;
+            return (
             <Card key={p.id} className="flex flex-col">
               <CardContent className="pt-5 flex flex-col flex-1 gap-3">
                 <div className="flex items-start justify-between gap-2">
@@ -123,29 +131,41 @@ export function ProjectsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                      onClick={() => openEdit(p)}
-                      title="编辑"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-rose-600"
-                      onClick={() => setDeleteId(p.id)}
-                      title="删除"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  {isCreator && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                        onClick={() => openEdit(p)}
+                        title="编辑"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-rose-600"
+                        onClick={() => setDeleteId(p.id)}
+                        title="删除"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge
+                    className={cn(
+                      "border-0 shadow-none font-medium",
+                      isCreator
+                        ? "bg-primary/10 text-primary"
+                        : "bg-amber-100 text-amber-700"
+                    )}
+                  >
+                    {ownershipLabel}
+                  </Badge>
                   <Badge
                     className={cn(
                       "border-0 shadow-none font-medium",
@@ -213,7 +233,8 @@ export function ProjectsPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

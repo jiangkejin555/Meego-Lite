@@ -13,14 +13,13 @@ export async function GET(req: NextRequest) {
   const url = req.nextUrl;
   const unreadOnly = url.searchParams.get("unreadOnly") === "1";
 
-  const where: Record<string, unknown> = { userId: me.id };
+  // 仅返回站内通道（in_app）的通知；email/feishu/wecom 等行只作为后台投递审计，不展示给用户
+  const where: Record<string, unknown> = {
+    userId: me.id,
+    channel: "in_app",
+  };
   if (unreadOnly) {
-    where.AND = [
-      { channel: "in_app" },
-      {
-        OR: [{ status: "pending" }, { status: "sent" }],
-      },
-    ];
+    where.OR = [{ status: "pending" }, { status: "sent" }];
   }
 
   const notifications = await db.notification.findMany({

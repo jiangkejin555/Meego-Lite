@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
-import { normalizePercent, syncTaskProgress } from "@/lib/progress";
+import { getSessionUser, unauthorized } from "@/lib/auth";
 
-// PATCH /api/progress/[id]  body: { userId, content?, percent? }
+// PATCH /api/progress/[id]  body: { content }
 // 仅记录作者本人可修改
 export async function PATCH(
   req: NextRequest,
@@ -11,55 +11,38 @@ export async function PATCH(
 ) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const { id } = await params;
   const body = await req.json();
-  if (!body.userId) {
-    return NextResponse.json({ error: "缺少 userId" }, { status: 400 });
-  }
   const existing = await db.progressUpdate.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "进度记录不存在" }, { status: 404 });
   }
-  if (existing.userId !== body.userId) {
+  if (existing.userId !== me.id) {
     return NextResponse.json({ error: "只能修改自己的进度记录" }, { status: 403 });
   }
 
-  const data: Record<string, unknown> = {};
-  if (body.content !== undefined) {
-    data.content = String(body.content).trim();
-  }
-  let percentChanged = false;
-  if (body.percent !== undefined) {
-    data.percent = normalizePercent(body.percent);
-    percentChanged = true;
+  if (body.status !== undefined) {
+    return NextResponse.json({ error: "不允许修改进度状态" }, { status: 400 });
   }
 
-  // After applying changes, ensure at least content or percent remains.
-  const finalContent =
-    data.content !== undefined ? (data.content as string) : existing.content;
-  const finalPercent =
-    data.percent !== undefined ? (data.percent as number | null) : existing.percent;
-  if (!finalContent && finalPercent === null) {
-    return NextResponse.json(
-      { error: "进度说明与百分比不能同时为空" },
-      { status: 400 }
-    );
+  const content = typeof body.content === "string" ? body.content.trim() : "";
+  if (!content) {
+    return NextResponse.json({ error: "请填写进度描述" }, { status: 400 });
   }
 
   const updated = await db.progressUpdate.update({
     where: { id },
-    data,
+    data: { content },
     include: { user: true },
   });
-
-  if (percentChanged) {
-    await syncTaskProgress(existing.taskId);
-  }
 
   return NextResponse.json({ update: updated });
 }
 
-// DELETE /api/progress/[id]?userId=...
+// DELETE /api/progress/[id]
 // 仅记录作者本人可删除
 export async function DELETE(
   req: NextRequest,
@@ -67,24 +50,19 @@ export async function DELETE(
 ) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const { id } = await params;
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "缺少 userId" }, { status: 400 });
-  }
   const existing = await db.progressUpdate.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "进度记录不存在" }, { status: 404 });
   }
-  if (existing.userId !== userId) {
+  if (existing.userId !== me.id) {
     return NextResponse.json({ error: "只能删除自己的进度记录" }, { status: 403 });
   }
 
   await db.progressUpdate.delete({ where: { id } });
-
-  if (existing.percent !== null) {
-    await syncTaskProgress(existing.taskId);
-  }
 
   return NextResponse.json({ ok: true });
 }

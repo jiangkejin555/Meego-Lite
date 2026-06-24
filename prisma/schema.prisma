@@ -26,6 +26,11 @@ model User {
   wecomWebhook    String?
   // How many minutes before deadline to send reminder (default 60 min)
   leadTimeMinutes Int      @default(60)
+  // AI report settings (per-user OpenAI credentials & summary preference)
+  openaiApiKey       String?
+  openaiBaseUrl      String?
+  openaiModel        String?
+  reportSummaryStyle String?
   // Auth: bcrypt password hash (optional, set when user has a password login)
   passwordHash    String?
   // Relations
@@ -36,6 +41,7 @@ model User {
   comments        Comment[]
   progressUpdates ProgressUpdate[]
   notifications   Notification[]
+  reports         Report[]
   deletedAt       DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -66,7 +72,6 @@ model Task {
   // priority: p0 | p1 | p2 | p3
   priority       String       @default("p2")
   deadline       DateTime?
-  progress       Int          @default(0)
   // Tags stored as JSON array string (SQLite doesn't support list type)
   tags           String?
   // Estimated & actual hours
@@ -100,9 +105,8 @@ model ProgressUpdate {
   id        String   @id @default(cuid())
   taskId    String
   userId    String
+  status    String
   content   String
-  // percent: optional 0-100; when present, drives the task's current progress
-  percent   Int?
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
@@ -139,4 +143,27 @@ model VerificationCode {
   createdAt DateTime @default(now())
 
   @@index([email, purpose])
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  userId    String
+  // type: daily | weekly | custom
+  type      String
+  title     String
+  startAt   DateTime
+  endAt     DateTime
+  // status: pending | done | failed
+  status    String   @default("done")
+  // error: 生成失败时的错误信息
+  error     String?
+  // content: Markdown 原文
+  content   String
+  // meta: JSON 字符串，冗余统计（任务/项目数量等），便于列表展示
+  meta      String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
 }

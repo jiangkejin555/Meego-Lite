@@ -43,7 +43,6 @@ interface TaskItem {
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
-  progress: number;
   tags: string[];
   creator: { id: string; name: string; deletedAt?: string | null };
   assignee: { id: string; name: string; deletedAt?: string | null } | null;
@@ -281,9 +280,6 @@ function KanbanCard({
         ) : (
           <span className="text-[11px] text-muted-foreground">未分配</span>
         )}
-        <span className="text-[11px] tabular-nums text-muted-foreground">
-          {task.progress}%
-        </span>
       </div>
     </div>
   );

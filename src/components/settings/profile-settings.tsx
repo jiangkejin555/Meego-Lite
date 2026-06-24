@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -57,9 +58,18 @@ import {
   ShieldAlert,
   Clock,
   Loader2,
+  Sparkles,
+  Plug,
+  CheckCircle2,
+  XCircle,
+  Link2,
+  Cpu,
+  Wand2,
+  RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { getUserInitials } from "@/lib/users";
+import { REPORT_SUMMARY_PRESETS } from "@/lib/constants";
 
 interface MeSettings {
   id: string;
@@ -74,6 +84,11 @@ interface MeSettings {
   feishuWebhook?: string | null;
   wecomWebhook?: string | null;
   leadTimeMinutes: number;
+  openaiApiKey?: string | null;
+  openaiApiKeySet?: boolean;
+  openaiBaseUrl?: string | null;
+  openaiModel?: string | null;
+  reportSummaryStyle?: string | null;
 }
 
 const NAME_MAX_LENGTH = 30;
@@ -130,6 +145,30 @@ export function ProfileSettings() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+
+  const profileSection = useAppStore((s) => s.profileSection);
+  const setProfileSection = useAppStore((s) => s.setProfileSection);
+  const reportCardRef = useRef<HTMLDivElement | null>(null);
+  const [highlightReport, setHighlightReport] = useState(false);
+
+  // Deep-link from "我的报告"：滚动到报告设置卡片并短暂高亮，随后清除标记。
+  useEffect(() => {
+    if (profileSection !== "report-settings" || !me) return;
+    const el = reportCardRef.current;
+    if (!el) return;
+    setProfileSection(null);
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
+    const startTimer = setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlightReport(true);
+      clearTimer = setTimeout(() => setHighlightReport(false), 2000);
+    }, 0);
+    return () => {
+      clearTimeout(startTimer);
+      if (clearTimer) clearTimeout(clearTimer);
+    };
+  }, [profileSection, me, setProfileSection]);
 
   if (isLoading || !me) {
     return (
@@ -142,14 +181,27 @@ export function ProfileSettings() {
   }
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-3xl mx-auto">
       {/* 1. 个人信息 */}
       <AccountCard me={me} onEdit={() => setAccountOpen(true)} />
 
       {/* 2. 通知设置 */}
       <NotificationCard me={me} onEdit={() => setNotificationOpen(true)} />
 
-      {/* 3. 账号设置 */}
+      {/* 3. 报告设置 */}
+      <div
+        id="report-settings"
+        ref={reportCardRef}
+        className={
+          highlightReport
+            ? "rounded-xl ring-2 ring-primary ring-offset-2 transition-shadow"
+            : "transition-shadow"
+        }
+      >
+        <ReportSettingsCard me={me} onEdit={() => setReportOpen(true)} />
+      </div>
+
+      {/* 4. 账号设置 */}
       <AccountSettingsCard
         me={me}
         onChangePassword={() => setPasswordOpen(true)}
@@ -179,6 +231,14 @@ export function ProfileSettings() {
               me={me}
               onDone={() => setNotificationOpen(false)}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+          {reportOpen && (
+            <ReportSettingsForm me={me} onDone={() => setReportOpen(false)} />
           )}
         </DialogContent>
       </Dialog>
@@ -796,6 +856,449 @@ function NotificationForm({
         <Button onClick={handleSave} disabled={mutation.isPending}>
           <Save className="h-4 w-4 mr-1.5" />
           {mutation.isPending ? "保存中..." : "保存通知设置"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
+
+function ReportSettingsCard({
+  me,
+  onEdit,
+}: {
+  me: MeSettings;
+  onEdit: () => void;
+}) {
+  const configured = !!me.openaiApiKeySet;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Sparkles className="h-4 w-4" />
+          报告设置
+        </CardTitle>
+        <CardDescription>配置生成日报 / 周报所使用的 AI 模型与总结方式</CardDescription>
+        <CardAction>
+          <Button variant="outline" size="sm" onClick={onEdit}>
+            <Pencil className="h-4 w-4 mr-1.5" />
+            编辑
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="space-y-1">
+        <div className="flex items-center justify-between gap-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <KeyRound className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="text-sm font-medium">API Key</p>
+          </div>
+          <Badge variant={configured ? "default" : "secondary"} className="shrink-0">
+            {configured ? "已配置" : "未配置"}
+          </Badge>
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between gap-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="text-sm font-medium">API Base URL</p>
+          </div>
+          <span className="truncate text-sm text-muted-foreground max-w-[60%] text-right">
+            {me.openaiBaseUrl || "默认（官方地址）"}
+          </span>
+        </div>
+        <Separator />
+        <div className="flex items-center justify-between gap-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <Cpu className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="text-sm font-medium">模型</p>
+          </div>
+          <span className="text-sm text-muted-foreground">
+            {me.openaiModel || "未设置"}
+          </span>
+        </div>
+        <Separator />
+        <div className="py-2.5">
+          <div className="flex items-center gap-2.5">
+            <Wand2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <p className="text-sm font-medium">自定义总结方式</p>
+          </div>
+          <p className="mt-1 pl-[26px] text-xs text-muted-foreground">
+            {me.reportSummaryStyle?.trim()
+              ? me.reportSummaryStyle
+              : "未设置，使用系统默认总结方式"}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ReportSettingsForm({
+  me,
+  onDone,
+}: {
+  me: MeSettings;
+  onDone: () => void;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [apiKey, setApiKey] = useState(me.openaiApiKey ?? "");
+  // 标记 Key 是否被用户改动：未改动时提交掩码原值，服务端识别后保持原 Key 不变。
+  const [keyDirty, setKeyDirty] = useState(false);
+  const [baseUrl, setBaseUrl] = useState(me.openaiBaseUrl ?? "");
+  const [model, setModel] = useState(me.openaiModel ?? "");
+  const [summaryStyle, setSummaryStyle] = useState(me.reportSummaryStyle ?? "");
+
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<
+    { ok: boolean; message: string } | null
+  >(null);
+
+  // 可用模型列表（来自接口拉取）。
+  const [models, setModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const modelFieldRef = useRef<HTMLDivElement>(null);
+
+  // Key 是否有效：用户输入了新值，或之前已配置且未被清空。
+  const hasKey = keyDirty ? apiKey.trim() !== "" : !!me.openaiApiKeySet;
+
+  // 已保存的模型若不在拉取结果中，仍作为额外选项保留，避免静默丢失原配置。
+  const modelOptions = model.trim() && !models.includes(model.trim())
+    ? [model.trim(), ...models]
+    : models;
+
+  // 根据当前输入实时过滤候选；输入为空时展示全部。
+  const filteredModelOptions = model.trim()
+    ? modelOptions.filter((m) =>
+        m.toLowerCase().includes(model.trim().toLowerCase())
+      )
+    : modelOptions;
+
+  const mutation = useMutation({
+    mutationFn: (payload: Record<string, unknown>) => updateMe(me.id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile-me"] });
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+      toast({ title: "报告设置已保存" });
+      onDone();
+    },
+    onError: (e: Error) =>
+      toast({ title: "保存失败", description: e.message, variant: "destructive" }),
+  });
+
+  const fetchModels = async () => {
+    if (!hasKey || !baseUrl.trim()) {
+      setModelsError("请先填写 API Key 和 API Base URL");
+      return;
+    }
+    setLoadingModels(true);
+    setModelsError(null);
+    try {
+      const res = await fetch("/api/reports/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // 未改动 Key 时不传明文，让服务端使用已保存的 Key。
+          openaiApiKey: keyDirty ? apiKey : "",
+          openaiBaseUrl: baseUrl,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok && Array.isArray(data.models)) {
+        setModels(data.models as string[]);
+        if (!data.models.length) {
+          setModelsError("未获取到可用模型");
+        }
+      } else {
+        setModels([]);
+        setModelsError(data.error || "获取模型列表失败，请检查 Key 与地址");
+      }
+    } catch (e) {
+      setModels([]);
+      setModelsError((e as Error).message);
+    } finally {
+      setLoadingModels(false);
+    }
+  };
+
+  // 打开弹窗时若已有凭证，自动拉取一次模型列表。
+  useEffect(() => {
+    if (me.openaiApiKeySet && (me.openaiBaseUrl ?? "").trim()) {
+      void fetchModels();
+    }
+  }, []);
+
+  // 点击模型字段外部时关闭候选下拉。
+  useEffect(() => {
+    if (!modelMenuOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (!modelFieldRef.current?.contains(e.target as Node)) {
+        setModelMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [modelMenuOpen]);
+
+  const handleTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const res = await fetch("/api/reports/test-connection", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // 未改动 Key 时不传明文，让服务端使用已保存的 Key 测试。
+          openaiApiKey: keyDirty ? apiKey : "",
+          openaiBaseUrl: baseUrl,
+          openaiModel: model,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        setTestResult({ ok: true, message: "连接成功，模型可用" });
+      } else {
+        setTestResult({
+          ok: false,
+          message: data.error || "连接失败，请检查配置",
+        });
+      }
+    } catch (e) {
+      setTestResult({ ok: false, message: (e as Error).message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const errors = {
+    apiKey: !hasKey,
+    baseUrl: !baseUrl.trim(),
+    model: !model.trim(),
+    summaryStyle: !summaryStyle.trim(),
+  };
+  const hasError = Object.values(errors).some(Boolean);
+
+  const handleSave = () => {
+    if (hasError) {
+      setShowErrors(true);
+      return;
+    }
+    mutation.mutate({
+      // 未改动时回传掩码原值；服务端识别掩码后保持原 Key。
+      openaiApiKey: keyDirty ? apiKey.trim() : me.openaiApiKey ?? "",
+      openaiBaseUrl: baseUrl.trim(),
+      openaiModel: model.trim(),
+      reportSummaryStyle: summaryStyle.trim(),
+    });
+  };
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4" />
+          报告设置
+        </DialogTitle>
+        <DialogDescription>
+          配置用于生成日报 / 周报的 AI 模型凭证与你偏好的总结方式。凭证仅保存在你的账号下。
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-5 py-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="report-api-key">
+            API Key <span className="text-rose-500">*</span>
+          </Label>
+          <Input
+            id="report-api-key"
+            type="password"
+            placeholder="sk-..."
+            value={apiKey}
+            onChange={(e) => {
+              setApiKey(e.target.value);
+              setKeyDirty(true);
+              setTestResult(null);
+              setModels([]);
+              setModelsError(null);
+            }}
+          />
+          {showErrors && errors.apiKey ? (
+            <p className="text-xs text-rose-500">请填写 API Key</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              出于安全考虑，已保存的 Key 以掩码显示；如需更换请直接输入新的 Key。
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="report-base-url">
+            API Base URL <span className="text-rose-500">*</span>
+          </Label>
+          <Input
+            id="report-base-url"
+            placeholder="https://api.openai.com/v1"
+            value={baseUrl}
+            onChange={(e) => {
+              setBaseUrl(e.target.value);
+              setTestResult(null);
+              setModels([]);
+              setModelsError(null);
+            }}
+          />
+          {showErrors && errors.baseUrl ? (
+            <p className="text-xs text-rose-500">请填写 API Base URL</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              填写兼容 OpenAI 协议的服务地址，例如 https://api.openai.com/v1。
+            </p>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="report-model">
+              模型 <span className="text-rose-500">*</span>
+            </Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-xs"
+              onClick={fetchModels}
+              disabled={loadingModels}
+            >
+              {loadingModels ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              )}
+              {loadingModels ? "获取中..." : "获取模型"}
+            </Button>
+          </div>
+          <div className="relative" ref={modelFieldRef}>
+            <Input
+              id="report-model"
+              autoComplete="off"
+              placeholder="选择或手动输入模型名，如 gpt-4o-mini"
+              value={model}
+              onChange={(e) => {
+                setModel(e.target.value);
+                setTestResult(null);
+                setModelMenuOpen(true);
+              }}
+              onFocus={() => setModelMenuOpen(true)}
+            />
+            {modelMenuOpen && filteredModelOptions.length > 0 && (
+              <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-md border border-border bg-white py-1 shadow-md">
+                {filteredModelOptions.map((m) => (
+                  <li key={m}>
+                    <button
+                      type="button"
+                      className="flex w-full items-center px-3 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => {
+                        setModel(m);
+                        setTestResult(null);
+                        setModelMenuOpen(false);
+                      }}
+                    >
+                      {m}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          {modelsError ? (
+            <p className="text-xs text-rose-500">{modelsError}</p>
+          ) : showErrors && errors.model ? (
+            <p className="text-xs text-rose-500">请选择或输入模型</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              点击「获取模型」从可用列表中选择；若列表不含你需要的模型，也可直接手动输入模型名。
+            </p>
+          )}
+        </div>
+
+        <Separator />
+
+        <div className="space-y-1.5">
+          <Label htmlFor="report-style">
+            自定义总结方式 <span className="text-rose-500">*</span>
+          </Label>
+          <Textarea
+            id="report-style"
+            rows={4}
+            placeholder="描述你希望 AI 如何组织报告（结构、分组、语气、详略）；或点击下方模板快速填入。"
+            value={summaryStyle}
+            onChange={(e) => setSummaryStyle(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {REPORT_SUMMARY_PRESETS.map((preset) => (
+              <Button
+                key={preset.label}
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-6 rounded-full px-2.5 text-xs"
+                onClick={() => setSummaryStyle(preset.value)}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+          {showErrors && errors.summaryStyle ? (
+            <p className="text-xs text-rose-500">请填写自定义总结方式</p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              点击上方按钮可快速填入模板，也可自行编辑。报告的整体结构与数据来源由系统统一控制。
+            </p>
+          )}
+        </div>
+
+        {testResult && (
+          <div
+            className={`flex items-center gap-2 rounded-md border px-3 py-2 text-sm ${
+              testResult.ok
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-rose-200 bg-rose-50 text-rose-700"
+            }`}
+          >
+            {testResult.ok ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+            ) : (
+              <XCircle className="h-4 w-4 shrink-0" />
+            )}
+            <span className="min-w-0 break-words">{testResult.message}</span>
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={onDone}
+          disabled={mutation.isPending || testing}
+        >
+          取消
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={handleTest}
+          disabled={testing || mutation.isPending}
+        >
+          {testing ? (
+            <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+          ) : (
+            <Plug className="h-4 w-4 mr-1.5" />
+          )}
+          {testing ? "测试中..." : "测试连接"}
+        </Button>
+        <Button onClick={handleSave} disabled={mutation.isPending || testing}>
+          <Save className="h-4 w-4 mr-1.5" />
+          {mutation.isPending ? "保存中..." : "保存"}
         </Button>
       </DialogFooter>
     </>

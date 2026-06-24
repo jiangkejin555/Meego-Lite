@@ -5,9 +5,11 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { TaskStatus, TaskPriority } from "@/lib/constants";
 
 export type ViewKey =
+  | "home"
   | "dashboard"
   | "tasks"
   | "projects"
+  | "reports"
   | "notifications"
   | "profile";
 
@@ -36,6 +38,11 @@ interface AppState {
   // Active view
   view: ViewKey;
   setView: (v: ViewKey) => void;
+
+  // Deep-link target section inside the profile page (e.g. "report-settings").
+  // Transient (not persisted); consumed once to scroll/highlight then cleared.
+  profileSection: string | null;
+  setProfileSection: (s: string | null) => void;
 
   // Filters
   filter: TaskFilter;
@@ -69,8 +76,11 @@ export const useAppStore = create<AppState>()(
       currentUser: null,
       setCurrentUser: (u) => set({ currentUser: u }),
 
-      view: "dashboard",
+      view: "home",
       setView: (v) => set({ view: v }),
+
+      profileSection: null,
+      setProfileSection: (s) => set({ profileSection: s }),
 
       filter: defaultFilter,
       setFilter: (patch) => set((s) => ({ filter: { ...s.filter, ...patch } })),
@@ -93,14 +103,16 @@ export const useAppStore = create<AppState>()(
       // 旧版本可能持久化了已废弃的视图（settings/users）或 currentUser，做一次清洗。
       migrate: (persisted) => {
         const valid: ViewKey[] = [
+          "home",
           "dashboard",
           "tasks",
           "projects",
+          "reports",
           "notifications",
           "profile",
         ];
         const view = (persisted as { view?: ViewKey } | null)?.view;
-        return { view: view && valid.includes(view) ? view : "dashboard" };
+        return { view: view && valid.includes(view) ? view : "home" };
       },
     }
   )

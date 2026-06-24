@@ -1,20 +1,46 @@
-import { db } from "@/lib/db";
+import { TASK_STATUS_LABEL, type TaskStatus } from "@/lib/constants";
 
-export function normalizePercent(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
-  const n = Number(value);
-  if (!Number.isFinite(n)) return null;
-  return Math.min(100, Math.max(0, Math.round(n)));
+type ProgressUpdateWriter = {
+  progressUpdate: {
+    create(args: {
+      data: {
+        taskId: string;
+        userId: string;
+        status: string;
+        content: string;
+      };
+    }): Promise<unknown>;
+  };
+};
+
+export function buildTaskCreatedProgressContent() {
+  return "任务已创建";
 }
 
-// Recompute Task.progress from the most recent progress update that has a percent.
-export async function syncTaskProgress(taskId: string) {
-  const latest = await db.progressUpdate.findFirst({
-    where: { taskId, percent: { not: null } },
-    orderBy: { createdAt: "desc" },
-  });
-  await db.task.update({
-    where: { id: taskId },
-    data: { progress: latest?.percent ?? 0 },
+export function buildTaskStatusChangedProgressContent(status: TaskStatus) {
+  return `任务状态已更新为「${TASK_STATUS_LABEL[status]}」`;
+}
+
+export async function createTaskProgressUpdate(
+  client: ProgressUpdateWriter,
+  {
+    taskId,
+    userId,
+    status,
+    content,
+  }: {
+    taskId: string;
+    userId: string;
+    status: TaskStatus;
+    content: string;
+  }
+) {
+  return client.progressUpdate.create({
+    data: {
+      taskId,
+      userId,
+      status,
+      content,
+    },
   });
 }

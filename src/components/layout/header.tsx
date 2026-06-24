@@ -84,7 +84,13 @@ export function Header() {
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0">
           <SheetHeader className="px-5 py-4 border-b flex flex-row items-center justify-between space-y-0">
-            <SheetTitle className="flex items-center gap-2">
+            <SheetTitle 
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => {
+                setView("home");
+                setMobileOpen(false);
+              }}
+            >
               <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
                 M
               </div>

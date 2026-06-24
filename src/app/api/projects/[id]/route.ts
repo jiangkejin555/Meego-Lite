@@ -21,6 +21,7 @@ export async function GET(req: NextRequest, ctx: RouteContext) {
     where: { id },
     include: {
       owners: { select: { id: true, name: true, email: true, deletedAt: true } },
+      creator: { select: { id: true, name: true, deletedAt: true } },
       _count: { select: { tasks: true } },
     },
   });
@@ -62,6 +63,13 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     existing.owners.some((o) => o.id === me.id);
   if (!isVisible) {
     return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  }
+
+  if (existing.creatorId !== me.id) {
+    return NextResponse.json(
+      { error: "只有项目创建者可以修改项目" },
+      { status: 403 }
+    );
   }
 
   const data: Record<string, unknown> = {};
@@ -121,6 +129,7 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     data,
     include: {
       owners: { select: { id: true, name: true, email: true, deletedAt: true } },
+      creator: { select: { id: true, name: true, deletedAt: true } },
       _count: { select: { tasks: true } },
     },
   });

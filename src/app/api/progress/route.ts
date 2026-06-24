@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
-import { normalizePercent, syncTaskProgress } from "@/lib/progress";
+import { createTaskProgressUpdate } from "@/lib/progress";
 import { getSessionUser, getVisibleProjectIds, unauthorized } from "@/lib/auth";
 
 // Whether the given task is visible to the user (creator or in a visible project)
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ updates });
 }
 
-// POST /api/progress  body: { taskId, content?, percent? }
+// POST /api/progress  body: { taskId, content }
 export async function POST(req: NextRequest) {
   await ensureDatabaseSchema();
 
@@ -55,15 +55,11 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const content = typeof body.content === "string" ? body.content.trim() : "";
-  const percent = normalizePercent(body.percent);
   if (!body.taskId) {
     return NextResponse.json({ error: "缺少 taskId" }, { status: 400 });
   }
-  if (!content && percent === null) {
-    return NextResponse.json(
-      { error: "请填写进度说明或选择百分比" },
-      { status: 400 }
-    );
+  if (!content) {
+    return NextResponse.json({ error: "请填写进度描述" }, { status: 400 });
   }
 
   const visibleProjectIds = await getVisibleProjectIds(me.id);
@@ -71,19 +67,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "任务不存在" }, { status: 404 });
   }
 
-  const update = await db.progressUpdate.create({
-    data: {
-      taskId: body.taskId,
-      userId: me.id,
-      content,
-      percent,
-    },
-    include: { user: true },
+  const task = await db.task.findUnique({
+    where: { id: body.taskId },
+    select: { status: true },
+  });
+  if (!task) {
+    return NextResponse.json({ error: "任务不存在" }, { status: 404 });
+  }
+
+  const created = await createTaskProgressUpdate(db, {
+    taskId: body.taskId,
+    userId: me.id,
+    status: task.status as
+      | "todo"
+      | "in_progress"
+      | "paused"
+      | "done"
+      | "closed",
+    content,
   });
 
-  if (percent !== null) {
-    await syncTaskProgress(body.taskId);
-  }
+  const update = await db.progressUpdate.findUnique({
+    where: { id: (created as { id: string }).id },
+    include: { user: true },
+  });
 
   return NextResponse.json({ update });
 }

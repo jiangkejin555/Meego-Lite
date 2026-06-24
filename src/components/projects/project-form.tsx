@@ -49,6 +49,7 @@ import {
 import { PROJECT_NAME_MAX_LENGTH } from "@/lib/project-utils";
 import { formatUserName } from "@/lib/users";
 import { useToast } from "@/hooks/use-toast";
+import { useAppStore } from "@/store/app-store";
 import { cn } from "@/lib/utils";
 
 interface UserItem {
@@ -77,6 +78,7 @@ export function ProjectFormDialog({
   const isEdit = !!project;
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const currentUser = useAppStore((s) => s.currentUser);
 
   const [name, setName] = useState(project?.name ?? "");
   const [description, setDescription] = useState(project?.description ?? "");
@@ -87,7 +89,9 @@ export function ProjectFormDialog({
     project?.priority ?? "p2"
   );
   const [ownerIds, setOwnerIds] = useState<string[]>(
-    project?.owners.map((o) => o.id) ?? []
+    project?.owners
+      .map((o) => o.id)
+      .filter((id) => id !== currentUser?.id) ?? []
   );
   const [ownerPickerOpen, setOwnerPickerOpen] = useState(false);
 
@@ -96,6 +100,8 @@ export function ProjectFormDialog({
     queryFn: fetchUsers,
   });
 
+  const selectableUsers = users.filter((u) => u.id !== currentUser?.id);
+
   const toggleOwner = (id: string) => {
     setOwnerIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -103,6 +109,7 @@ export function ProjectFormDialog({
   };
 
   const selectedOwners = ownerIds
+    .filter((id) => id !== currentUser?.id)
     .map(
       (id) =>
         users.find((u) => u.id === id) ??
@@ -233,7 +240,7 @@ export function ProjectFormDialog({
                   <CommandList>
                     <CommandEmpty>未找到用户</CommandEmpty>
                     <CommandGroup>
-                      {users.map((u) => {
+                      {selectableUsers.map((u) => {
                         const checked = ownerIds.includes(u.id);
                         return (
                           <CommandItem

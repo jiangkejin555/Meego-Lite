@@ -9,6 +9,10 @@ import {
 import { sendNotification } from "@/lib/notification";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
 import { getSessionUser, getVisibleProjectIds, unauthorized } from "@/lib/auth";
+import {
+  buildTaskCreatedProgressContent,
+  createTaskProgressUpdate,
+} from "@/lib/progress";
 
 // GET /api/tasks — list with optional filters
 export async function GET(req: NextRequest) {
@@ -66,7 +70,7 @@ export async function GET(req: NextRequest) {
         where: { content: { not: "" } },
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { content: true, percent: true },
+        select: { content: true },
       },
     },
     orderBy: { createdAt: "desc" },
@@ -79,7 +83,6 @@ export async function GET(req: NextRequest) {
       ...t,
       tags: parseStringArray(t.tags),
       latestProgressNote: latest?.content ?? null,
-      latestProgressPercent: latest?.percent ?? null,
     };
   });
 
@@ -140,24 +143,36 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const task = await db.task.create({
-    data: {
-      title: body.title.trim(),
-      description: body.description ?? null,
-      status: (body.status as TaskStatus) || "todo",
-      priority: (body.priority as TaskPriority) || "p2",
-      deadline: body.deadline ? new Date(body.deadline) : null,
-      progress: typeof body.progress === "number" ? body.progress : 0,
-      tags: body.tags ? stringifyArray(body.tags) : null,
-      estimatedHours:
-        typeof body.estimatedHours === "number" ? body.estimatedHours : null,
-      actualHours:
-        typeof body.actualHours === "number" ? body.actualHours : null,
-      creatorId: me.id,
-      assigneeId,
-      projectId,
-    },
-    include: { creator: true, assignee: true },
+  const status = (body.status as TaskStatus) || "todo";
+
+  const task = await db.$transaction(async (tx) => {
+    const createdTask = await tx.task.create({
+      data: {
+        title: body.title.trim(),
+        description: body.description ?? null,
+        status,
+        priority: (body.priority as TaskPriority) || "p2",
+        deadline: body.deadline ? new Date(body.deadline) : null,
+        tags: body.tags ? stringifyArray(body.tags) : null,
+        estimatedHours:
+          typeof body.estimatedHours === "number" ? body.estimatedHours : null,
+        actualHours:
+          typeof body.actualHours === "number" ? body.actualHours : null,
+        creatorId: me.id,
+        assigneeId,
+        projectId,
+      },
+      include: { creator: true, assignee: true },
+    });
+
+    await createTaskProgressUpdate(tx, {
+      taskId: createdTask.id,
+      userId: me.id,
+      status,
+      content: buildTaskCreatedProgressContent(),
+    });
+
+    return createdTask;
   });
 
   // If assignee is set and is not the creator, notify the assignee

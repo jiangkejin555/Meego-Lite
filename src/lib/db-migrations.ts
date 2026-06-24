@@ -25,6 +25,82 @@ async function getTableColumns(client: RawSqlDb, tableName: string) {
   );
 }
 
+async function rebuildTaskTableWithoutProgress(client: RawSqlDb) {
+  await client.$executeRawUnsafe('PRAGMA foreign_keys=OFF');
+  try {
+    await client.$executeRawUnsafe(`CREATE TABLE "Task_new" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'todo',
+    "priority" TEXT NOT NULL DEFAULT 'p2',
+    "deadline" DATETIME,
+    "tags" TEXT,
+    "estimatedHours" REAL,
+    "actualHours" REAL,
+    "creatorId" TEXT NOT NULL,
+    "assigneeId" TEXT,
+    "projectId" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Task_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "Task_assigneeId_fkey" FOREIGN KEY ("assigneeId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "Task_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+)`);
+    await client.$executeRawUnsafe(`INSERT INTO "Task_new" (
+    "id", "title", "description", "status", "priority", "deadline", "tags",
+    "estimatedHours", "actualHours", "creatorId", "assigneeId", "projectId",
+    "createdAt", "updatedAt"
+)
+SELECT
+    "id", "title", "description", "status", "priority", "deadline", "tags",
+    "estimatedHours", "actualHours", "creatorId", "assigneeId", "projectId",
+    "createdAt", "updatedAt"
+FROM "Task"`);
+    await client.$executeRawUnsafe('DROP TABLE "Task"');
+    await client.$executeRawUnsafe('ALTER TABLE "Task_new" RENAME TO "Task"');
+  } finally {
+    await client.$executeRawUnsafe('PRAGMA foreign_keys=ON');
+  }
+}
+
+async function rebuildProgressUpdateTable(client: RawSqlDb, sourceHasStatus: boolean) {
+  const statusExpression = sourceHasStatus
+    ? `COALESCE("status", 'todo')`
+    : `COALESCE((SELECT "status" FROM "Task" WHERE "Task"."id" = "ProgressUpdate"."taskId"), 'todo')`;
+
+  await client.$executeRawUnsafe('PRAGMA foreign_keys=OFF');
+  try {
+    await client.$executeRawUnsafe(`CREATE TABLE "ProgressUpdate_new" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "taskId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ProgressUpdate_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "ProgressUpdate_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+)`);
+    await client.$executeRawUnsafe(`INSERT INTO "ProgressUpdate_new" (
+    "id", "taskId", "userId", "status", "content", "createdAt"
+)
+SELECT
+    "id",
+    "taskId",
+    "userId",
+    ${statusExpression},
+    "content",
+    "createdAt"
+FROM "ProgressUpdate"`);
+    await client.$executeRawUnsafe('DROP TABLE "ProgressUpdate"');
+    await client.$executeRawUnsafe(
+      'ALTER TABLE "ProgressUpdate_new" RENAME TO "ProgressUpdate"'
+    );
+  } finally {
+    await client.$executeRawUnsafe('PRAGMA foreign_keys=ON');
+  }
+}
+
 async function ensureColumn(
   client: RawSqlDb,
   tableName: string,
@@ -76,6 +152,15 @@ export async function ensureUserSchema(client: RawSqlDb) {
     "leadTimeMinutes",
     '"leadTimeMinutes" INTEGER NOT NULL DEFAULT 60'
   );
+  await ensureColumn(client, "User", "openaiApiKey", '"openaiApiKey" TEXT');
+  await ensureColumn(client, "User", "openaiBaseUrl", '"openaiBaseUrl" TEXT');
+  await ensureColumn(client, "User", "openaiModel", '"openaiModel" TEXT');
+  await ensureColumn(
+    client,
+    "User",
+    "reportSummaryStyle",
+    '"reportSummaryStyle" TEXT'
+  );
 }
 
 export async function ensureTaskSchema(client: RawSqlDb) {
@@ -83,6 +168,15 @@ export async function ensureTaskSchema(client: RawSqlDb) {
   await ensureColumn(client, "Task", "tags", '"tags" TEXT');
   await ensureColumn(client, "Task", "estimatedHours", '"estimatedHours" REAL');
   await ensureColumn(client, "Task", "actualHours", '"actualHours" REAL');
+
+  if (!(await tableExists(client, "Task"))) {
+    return;
+  }
+
+  const columns = await getTableColumns(client, "Task");
+  if (columns.some((column) => column.name === "progress")) {
+    await rebuildTaskTableWithoutProgress(client);
+  }
 }
 
 export async function ensureProjectSchema(client: RawSqlDb) {
@@ -144,12 +238,20 @@ export async function ensureProgressSchema(client: RawSqlDb) {
     "id" TEXT NOT NULL PRIMARY KEY,
     "taskId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
     "content" TEXT NOT NULL,
-    "percent" INTEGER,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "ProgressUpdate_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "ProgressUpdate_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 )`);
+  } else {
+    const columns = await getTableColumns(client, "ProgressUpdate");
+    const hasStatus = columns.some((column) => column.name === "status");
+    const hasPercent = columns.some((column) => column.name === "percent");
+
+    if (!hasStatus || hasPercent) {
+      await rebuildProgressUpdateTable(client, hasStatus);
+    }
   }
 
   await client.$executeRawUnsafe(
@@ -206,6 +308,39 @@ export async function ensureVerificationCodeSchema(client: RawSqlDb) {
   );
 }
 
+export async function ensureReportSchema(client: RawSqlDb) {
+  if (!(await tableExists(client, "Report"))) {
+    await client.$executeRawUnsafe(`CREATE TABLE "Report" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "startAt" DATETIME NOT NULL,
+    "endAt" DATETIME NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'done',
+    "error" TEXT,
+    "content" TEXT NOT NULL,
+    "meta" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Report_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+)`);
+  }
+
+  // 旧库平滑升级：补充 status / error 列
+  await ensureColumn(
+    client,
+    "Report",
+    "status",
+    `"status" TEXT NOT NULL DEFAULT 'done'`
+  );
+  await ensureColumn(client, "Report", "error", '"error" TEXT');
+
+  await client.$executeRawUnsafe(
+    'CREATE INDEX IF NOT EXISTS "Report_userId_createdAt_index" ON "Report"("userId","createdAt")'
+  );
+}
+
 export function ensureDatabaseSchema() {
   if (!globalForMigrations.meegoLiteSchemaMigrationPromise) {
     const promise = (async () => {
@@ -217,6 +352,7 @@ export function ensureDatabaseSchema() {
       await ensureProgressSchema(db);
       await ensureNotificationSchema(db);
       await ensureVerificationCodeSchema(db);
+      await ensureReportSchema(db);
     })();
 
     // 失败时清空缓存，避免一次失败后所有请求永久卡死

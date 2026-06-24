@@ -30,9 +30,8 @@ interface TaskItem {
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
-  progress: number;
+  latestProgressDescription?: string | null;
   latestProgressNote: string | null;
-  latestProgressPercent: number | null;
   tags: string[];
   creator: { id: string; name: string };
   assignee: { id: string; name: string } | null;
@@ -321,7 +320,7 @@ export function TasksPage({ mine = false }: { mine?: boolean }) {
 
       {/* Main Content */}
       {viewMode === "list" ? (
-        <TaskList tasks={tasks} isLoading={isLoading} users={users} />
+        <TaskList tasks={tasks} isLoading={isLoading} />
       ) : (
         <TaskKanban
           tasks={tasks}

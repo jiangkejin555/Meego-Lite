@@ -18,6 +18,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+import { useAppStore } from "@/store/app-store";
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const RESEND_SECONDS = 60;
 
@@ -170,7 +172,10 @@ export default function LoginPage() {
   const [regCode, setRegCode] = useState("");
   const [registering, setRegistering] = useState(false);
 
+  const setView = useAppStore((s) => s.setView);
+
   const goHome = () => {
+    setView("home");
     router.replace("/");
     router.refresh();
   };

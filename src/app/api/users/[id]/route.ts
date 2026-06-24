@@ -9,6 +9,7 @@ import {
   unauthorized,
 } from "@/lib/auth";
 import { consumeVerificationCode } from "@/lib/verification";
+import { maskApiKey, isMaskedApiKey } from "@/lib/mask";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -43,6 +44,24 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
     data.wecomWebhook = body.wecomWebhook || null;
   if (body.leadTimeMinutes !== undefined)
     data.leadTimeMinutes = Number(body.leadTimeMinutes);
+
+  // AI report settings (stored on User, no separate settings table)
+  if (body.openaiBaseUrl !== undefined)
+    data.openaiBaseUrl = String(body.openaiBaseUrl || "").trim() || null;
+  if (body.openaiModel !== undefined)
+    data.openaiModel = String(body.openaiModel || "").trim() || null;
+  if (body.reportSummaryStyle !== undefined)
+    data.reportSummaryStyle = String(body.reportSummaryStyle || "").trim() || null;
+  // API Key: undefined=不变；掩码回显=不变；空串=清除；其它=覆盖明文。
+  if (body.openaiApiKey !== undefined) {
+    const raw = String(body.openaiApiKey ?? "");
+    const trimmed = raw.trim();
+    if (trimmed === "") {
+      data.openaiApiKey = null;
+    } else if (!isMaskedApiKey(trimmed)) {
+      data.openaiApiKey = trimmed;
+    }
+  }
 
   // Optional password change — verified via email code (no current password needed)
   if (body.newPassword !== undefined || body.code !== undefined) {
@@ -82,6 +101,11 @@ export async function PUT(req: NextRequest, ctx: RouteContext) {
       feishuWebhook: user.feishuWebhook,
       wecomWebhook: user.wecomWebhook,
       leadTimeMinutes: user.leadTimeMinutes,
+      openaiApiKey: maskApiKey(user.openaiApiKey),
+      openaiApiKeySet: !!user.openaiApiKey,
+      openaiBaseUrl: user.openaiBaseUrl,
+      openaiModel: user.openaiModel,
+      reportSummaryStyle: user.reportSummaryStyle,
     },
   });
 }

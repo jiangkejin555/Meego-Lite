@@ -5,8 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { Dashboard } from "@/components/dashboard/dashboard";
+import { HomePage } from "@/components/home/home-page";
 import { TasksPage } from "@/components/tasks/tasks-page";
 import { ProjectsPage } from "@/components/projects/projects-page";
+import { ReportsPage } from "@/components/reports/reports-page";
 import { TaskFormDialog } from "@/components/tasks/task-form";
 import { TaskDetailDrawer } from "@/components/tasks/task-detail";
 import { NotificationCenter } from "@/components/notifications/notification-center";
@@ -73,9 +75,11 @@ export default function Home() {
         <Header />
         <main className="flex-1 p-4 sm:p-6 overflow-x-hidden">
           <div className="mx-auto max-w-7xl">
+            {view === "home" && <HomePage />}
             {view === "dashboard" && <Dashboard />}
             {view === "tasks" && <TasksPage />}
             {view === "projects" && <ProjectsPage />}
+            {view === "reports" && <ReportsPage />}
             {view === "notifications" && <NotificationCenter />}
             {view === "profile" && <ProfileSettings />}
           </div>

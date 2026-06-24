@@ -14,7 +14,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Markdown } from "@/components/ui/markdown";
 import {
@@ -67,7 +66,6 @@ interface TaskDetail {
   status: TaskStatus;
   priority: TaskPriority;
   deadline: string | null;
-  progress: number;
   tags: string[];
   estimatedHours: number | null;
   actualHours: number | null;
@@ -84,8 +82,8 @@ interface TaskDetail {
   }>;
   progressUpdates: Array<{
     id: string;
+    status: TaskStatus;
     content: string;
-    percent: number | null;
     createdAt: string;
     user: { id: string; name: string; deletedAt?: string | null };
   }>;
@@ -378,15 +376,10 @@ export function TaskDetailDrawer() {
             </MetaRow>
           </div>
 
-          {/* Progress */}
+          {/* Progress Updates */}
           <div className="space-y-4">
-            {/* Overview row + bar */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground font-medium">完成进度</span>
-                <span className="tabular-nums font-medium">{task.progress}%</span>
-              </div>
-              <Progress value={task.progress} className="h-2" />
+            <div className="text-sm font-medium text-muted-foreground">
+              进度描述
             </div>
 
             {(() => {
@@ -396,7 +389,7 @@ export function TaskDetailDrawer() {
               if (notes.length === 0) {
                 return (
                   <p className="text-xs text-muted-foreground italic">
-                    暂无进度描述
+                    暂无过程记录
                   </p>
                 );
               }
@@ -428,8 +421,8 @@ export function TaskDetailDrawer() {
                           )}
                         />
                         {historyOpen
-                          ? "收起历史描述"
-                          : `查看历史描述 (${notes.length - 1})`}
+                          ? "收起历史记录"
+                          : `查看历史记录 (${notes.length - 1})`}
                       </button>
                     </CollapsibleTrigger>
                   )}
@@ -725,11 +718,14 @@ function ProgressTimelineItem({
         <span className="font-medium text-foreground">
           {formatUserName(update.user)}
         </span>
-        {update.percent != null && (
-          <span className="font-medium text-emerald-600 tabular-nums">
-            {update.percent}%
-          </span>
-        )}
+        <Badge
+          className={cn(
+            "border-0 px-2 py-0.5 text-[10px] font-medium shadow-none",
+            TASK_STATUS_COLOR[update.status]
+          )}
+        >
+          {TASK_STATUS_LABEL[update.status]}
+        </Badge>
         <span className="ml-auto shrink-0">
           {new Date(update.createdAt).toLocaleString("zh-CN", {
             month: "2-digit",

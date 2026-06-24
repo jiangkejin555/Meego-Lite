@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   ListTodo,
   FolderKanban,
+  FileText,
   Bell,
   Settings,
   Plus,
@@ -15,8 +16,9 @@ import { useQuery } from "@tanstack/react-query";
 
 const NAV: { key: ViewKey; label: string; icon: React.ElementType }[] = [
   { key: "dashboard", label: "仪表盘", icon: LayoutDashboard },
-  { key: "tasks", label: "我的任务", icon: ListTodo },
   { key: "projects", label: "我的项目", icon: FolderKanban },
+  { key: "tasks", label: "我的任务", icon: ListTodo },
+  { key: "reports", label: "我的报告", icon: FileText },
   { key: "notifications", label: "通知中心", icon: Bell },
   { key: "profile", label: "个人设置", icon: Settings },
 ];
@@ -46,8 +48,11 @@ export function Sidebar() {
   const unreadCount = unread?.length ?? 0;
 
   return (
-    <aside className="hidden md:flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-      <div className="flex items-center gap-2 px-5 py-5 border-b">
+    <aside className="hidden md:flex w-45 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
+      <div 
+        className="flex items-center gap-2 px-5 py-5 border-b cursor-pointer hover:bg-sidebar-accent/50 transition-colors"
+        onClick={() => setView("home")}
+      >
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground font-bold">
           M
         </div>
@@ -81,7 +86,7 @@ export function Sidebar() {
                 "flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
                 "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 active &&
-                  "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
               )}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -98,7 +103,6 @@ export function Sidebar() {
 
       <div className="border-t px-3 py-3 text-[11px] text-muted-foreground">
         <p>v0.1 · 简版 Meego</p>
-        <p className="mt-0.5">截止提醒：飞书 / 企微 / 邮箱</p>
       </div>
     </aside>
   );
