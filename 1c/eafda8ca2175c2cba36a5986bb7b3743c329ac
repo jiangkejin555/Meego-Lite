@@ -1,0 +1,29 @@
+src/components/layout/header.tsx
+  s_d01af1a260677a::t_fa1a7012bffade 46-47
+  s_d01af1a260677a::t_0d8fb90eee498e 29
+src/components/reports/reports-page.tsx
+  s_d01af1a260677a::t_a7fe45d347f353 100-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1ceafda8ca2175c2cba36a5986bb7b3743c329ac",
+  "prompts": {},
+  "humans": {
+    "h_ffff03b1e83f00": {
+      "author": "jiangkejin <jiangkejin@bytedance.com>"
+    }
+  },
+  "sessions": {
+    "s_d01af1a260677a": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a3b82a5ffb84a8fed242fdd",
+        "model": "gemini-3.1-pro__dev"
+      },
+      "human_author": "jiangkejin <jiangkejin@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
