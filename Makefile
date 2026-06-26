@@ -3,9 +3,9 @@
 # ------------------------------------------------------------------------------
 # 使用方法（在阿里云服务器上）:
 #   make help              # 查看所有命令
-#   make first-deploy      # 首次部署（init + install + build + nginx-temp + start）
+#   make first-deploy      # 首次部署（system-deps + install + build + nginx-prod + start）
 #   make update            # 日常更新（git pull + install + build + restart）
-#   make ssl DOMAIN=xx.com # 备案通过后开启 HTTPS
+#   make ssl DOMAIN=www.xx.com # 开启 HTTPS
 #
 # 使用方法（本地）:
 #   make remote-deploy     # 一键远程部署到阿里云
@@ -15,7 +15,6 @@
 APP_NAME      ?= meego-lite
 APP_DIR       ?= $(shell pwd)
 APP_PORT      ?= 3000
-TEMP_PORT     ?= 8080
 NPM_REGISTRY  ?= https://registry.npmmirror.com
 DB_PATH       ?= $(APP_DIR)/prisma/prod.db
 BACKUP_DIR    ?= /opt/backup
@@ -26,7 +25,8 @@ REMOTE_HOST   ?= 8.137.204.102
 REMOTE_DIR    ?= /home/admin/kejin/Meego-Lite
 
 # 域名（make ssl 时使用）
-DOMAIN        ?=
+DOMAIN        ?= www.meegolite.cn
+DOMAIN_NAMES  ?= $(DOMAIN)
 
 # ===== 颜色输出 ===============================================================
 CYAN   := \033[36m
@@ -40,7 +40,7 @@ SHELL := /bin/bash
 
 .DEFAULT_GOAL := help
 .PHONY: help init system-deps install build start stop restart status logs \
-        db-init db-push db-backup nginx-temp nginx-prod ssl deploy first-deploy update \
+        db-init db-push db-backup nginx-prod ssl deploy first-deploy update \
         clean swap registry-config remote-deploy install-full monit
 
 # ==============================================================================
@@ -51,21 +51,21 @@ help: ## 显示所有可用命令
 	@printf "$(GREEN)常用一键命令：$(RESET)\n"
 	@printf "  $(YELLOW)make first-deploy$(RESET)  首次部署（一条命令搞定）\n"
 	@printf "  $(YELLOW)make update$(RESET)        日常更新代码后重启\n"
-	@printf "  $(YELLOW)make ssl DOMAIN=xx.com$(RESET)  备案通过后开 HTTPS\n\n"
+	@printf "  $(YELLOW)make ssl DOMAIN=www.xx.com$(RESET)  开 HTTPS\n\n"
 	@printf "$(GREEN)所有命令：$(RESET)\n"
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  $(CYAN)%-18s$(RESET) %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 	@printf "\n$(GREEN)配置变量（可覆盖）：$(RESET)\n"
-	@printf "  APP_NAME=$(APP_NAME)  APP_PORT=$(APP_PORT)  TEMP_PORT=$(TEMP_PORT)\n"
+	@printf "  APP_NAME=$(APP_NAME)  APP_PORT=$(APP_PORT)\n"
 	@printf "  REMOTE_USER=$(REMOTE_USER)  REMOTE_HOST=$(REMOTE_HOST)  REMOTE_DIR=$(REMOTE_DIR)\n\n"
 
 # ==============================================================================
 # 一键部署组合命令
 # ==============================================================================
-first-deploy: system-deps swap registry-config install build db-init nginx-temp start ## 首次部署：环境 + 依赖 + 构建 + Nginx + 启动
+first-deploy: system-deps swap registry-config install build db-init nginx-prod start ## 首次部署：环境 + 依赖 + 构建 + Nginx + 启动
 	@printf "\n$(GREEN)✓ 首次部署完成！$(RESET)\n"
-	@printf "  访问地址：$(YELLOW)http://$$(curl -s ifconfig.me):$(TEMP_PORT)$(RESET)\n"
+	@printf "  访问地址：$(YELLOW)http://$(DOMAIN)$(RESET)\n"
 	@printf "  查看日志：$(YELLOW)make logs$(RESET)\n"
-	@printf "  备案通过后开 HTTPS：$(YELLOW)make ssl DOMAIN=你的域名.com$(RESET)\n\n"
+	@printf "  开 HTTPS：$(YELLOW)make ssl DOMAIN=$(DOMAIN)$(RESET)\n\n"
 
 update: db-backup ## 日常更新：备份 + 拉代码 + 装依赖 + 执行迁移 + 构建 + 重启
 	@printf "$(CYAN)>> 拉取最新代码...$(RESET)\n"
@@ -267,35 +267,6 @@ monit: ## PM2 实时监控（CPU / 内存）
 # ==============================================================================
 # Nginx 配置模板（使用 define 块定义多行内容）
 # ==============================================================================
-define NGINX_TEMP_CONF
-map $$http_upgrade $$connection_upgrade {
-    default upgrade;
-    ''      close;
-}
-server {
-    listen $(TEMP_PORT);
-    server_name _;
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript;
-    location /_next/static/ {
-        proxy_pass http://127.0.0.1:$(APP_PORT);
-        expires 365d;
-        add_header Cache-Control "public, immutable";
-    }
-    location / {
-        proxy_pass http://127.0.0.1:$(APP_PORT);
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $$http_upgrade;
-        proxy_set_header Connection $$connection_upgrade;
-        proxy_set_header Host $$host;
-        proxy_set_header X-Real-IP $$remote_addr;
-        proxy_set_header X-Forwarded-For $$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $$scheme;
-    }
-}
-endef
-export NGINX_TEMP_CONF
-
 define NGINX_PROD_CONF
 map $$http_upgrade $$connection_upgrade {
     default upgrade;
@@ -303,7 +274,7 @@ map $$http_upgrade $$connection_upgrade {
 }
 server {
     listen 80;
-    server_name $(DOMAIN) www.$(DOMAIN);
+    server_name $(DOMAIN_NAMES);
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml image/svg+xml;
     gzip_min_length 1024;
@@ -332,17 +303,6 @@ server {
 endef
 export NGINX_PROD_CONF
 
-nginx-temp: ## 配置临时 Nginx（监听 $(TEMP_PORT) 端口，备案前用）
-	@printf "$(CYAN)>> 配置临时 Nginx (端口 $(TEMP_PORT))...$(RESET)\n"
-	@echo "$$NGINX_TEMP_CONF" | sudo tee /etc/nginx/sites-available/$(APP_NAME)-temp > /dev/null
-	@sudo ln -sf /etc/nginx/sites-available/$(APP_NAME)-temp /etc/nginx/sites-enabled/
-	@sudo rm -f /etc/nginx/sites-enabled/default
-	@sudo nginx -t
-	@sudo systemctl reload nginx
-	@sudo ufw allow $(TEMP_PORT) || true
-	@printf "$(GREEN)✓ 临时 Nginx 配置完成$(RESET)\n"
-	@printf "  $(YELLOW)记得在阿里云控制台开放 $(TEMP_PORT) 端口！$(RESET)\n"
-
 nginx-prod: ## 配置正式 Nginx（监听 80，需指定 DOMAIN）
 	@if [ -z "$(DOMAIN)" ]; then \
 		printf "$(RED)错误：请指定域名，例如 make nginx-prod DOMAIN=xxx.com$(RESET)\n"; \
@@ -350,7 +310,6 @@ nginx-prod: ## 配置正式 Nginx（监听 80，需指定 DOMAIN）
 	fi
 	@printf "$(CYAN)>> 配置正式 Nginx (域名 $(DOMAIN))...$(RESET)\n"
 	@echo "$$NGINX_PROD_CONF" | sudo tee /etc/nginx/sites-available/$(APP_NAME) > /dev/null
-	@sudo rm -f /etc/nginx/sites-enabled/$(APP_NAME)-temp
 	@sudo ln -sf /etc/nginx/sites-available/$(APP_NAME) /etc/nginx/sites-enabled/
 	@sudo nginx -t
 	@sudo systemctl reload nginx
@@ -366,6 +325,6 @@ ssl: ## 申请并配置 HTTPS 证书（需指定 DOMAIN）
 	fi
 	@printf "$(CYAN)>> 申请 HTTPS 证书 ($(DOMAIN))...$(RESET)\n"
 	@$(MAKE) nginx-prod DOMAIN=$(DOMAIN)
-	@sudo certbot --nginx -d $(DOMAIN) -d www.$(DOMAIN)
+	@sudo certbot --nginx $(foreach d,$(DOMAIN_NAMES),-d $(d))
 	@sudo certbot renew --dry-run
 	@printf "$(GREEN)✓ HTTPS 配置完成，访问 https://$(DOMAIN)$(RESET)\n"
