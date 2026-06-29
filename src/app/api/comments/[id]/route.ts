@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
+import { getSessionUser, unauthorized } from "@/lib/auth";
 
-// PATCH /api/comments/[id]  body: { userId, content }
+// PATCH /api/comments/[id]  body: { content }
 // 仅评论作者本人可修改
 export async function PATCH(
   req: NextRequest,
@@ -10,27 +11,31 @@ export async function PATCH(
 ) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const { id } = await params;
-  const body = await req.json();
-  if (!body.userId || !body.content?.trim()) {
+  const body = await req.json().catch(() => null);
+  const content = typeof body?.content === "string" ? body.content.trim() : "";
+  if (!content) {
     return NextResponse.json({ error: "参数不完整" }, { status: 400 });
   }
   const existing = await db.comment.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "评论不存在" }, { status: 404 });
   }
-  if (existing.userId !== body.userId) {
+  if (existing.userId !== me.id) {
     return NextResponse.json({ error: "只能修改自己的评论" }, { status: 403 });
   }
   const updated = await db.comment.update({
     where: { id },
-    data: { content: String(body.content).trim() },
+    data: { content },
     include: { user: true },
   });
   return NextResponse.json({ comment: updated });
 }
 
-// DELETE /api/comments/[id]?userId=...
+// DELETE /api/comments/[id]
 // 仅评论作者本人可删除
 export async function DELETE(
   req: NextRequest,
@@ -38,16 +43,15 @@ export async function DELETE(
 ) {
   await ensureDatabaseSchema();
 
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
+
   const { id } = await params;
-  const userId = req.nextUrl.searchParams.get("userId");
-  if (!userId) {
-    return NextResponse.json({ error: "缺少 userId" }, { status: 400 });
-  }
   const existing = await db.comment.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "评论不存在" }, { status: 404 });
   }
-  if (existing.userId !== userId) {
+  if (existing.userId !== me.id) {
     return NextResponse.json({ error: "只能删除自己的评论" }, { status: 403 });
   }
   await db.comment.delete({ where: { id } });

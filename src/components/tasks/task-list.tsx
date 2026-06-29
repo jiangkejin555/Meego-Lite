@@ -289,8 +289,8 @@ export function TaskList({
   
   const [pendingStatusId, setPendingStatusId] = useState<string | null>(null);
 
-  const [sortKey, setSortKey] = useState<SortKey>("createdAt");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortKey, setSortKey] = useState<SortKey>("status");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) {
@@ -414,10 +414,16 @@ export function TaskList({
               ) : (
                 sortedTasks.map((t) => {
                   const dl = deadlineStatus(t.deadline, t.status);
+                  const isMuted = t.status === "done" || t.status === "paused";
                   return (
                     <TableRow
                       key={t.id}
-                      className="group cursor-pointer hover:bg-muted/40"
+                      className={cn(
+                        "group cursor-pointer",
+                        isMuted
+                          ? "bg-slate-200/80 hover:bg-slate-300/80 dark:bg-slate-900/45 dark:hover:bg-slate-900/60"
+                          : "hover:bg-muted/40"
+                      )}
                       onClick={() => setSelectedTaskId(t.id)}
                     >
                       <TableCell className="w-[240px] max-w-[240px]">

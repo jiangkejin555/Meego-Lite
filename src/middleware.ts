@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/auth";
 
-// Paths that do not require authentication.
 const PUBLIC_PATHS = new Set<string>([
   "/login",
   "/api/auth/login",

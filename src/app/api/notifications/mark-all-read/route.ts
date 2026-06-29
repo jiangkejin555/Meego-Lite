@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getSessionUser, unauthorized } from "@/lib/auth";
 
 // POST /api/notifications/mark-all-read
-// body: { userId: string }
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  if (!body.userId) {
-    return NextResponse.json({ error: "缺少 userId" }, { status: 400 });
-  }
+  const me = await getSessionUser(req);
+  if (!me) return unauthorized();
 
   // Mark all in-app notifications of this user as read
   await db.notification.updateMany({
     where: {
-      userId: body.userId,
+      userId: me.id,
       channel: "in_app",
       status: { in: ["pending", "sent"] },
     },

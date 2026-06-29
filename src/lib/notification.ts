@@ -47,7 +47,9 @@ export async function sendNotification({
   content,
   channels,
 }: SendArgs): Promise<SendResult[]> {
-  const user = await db.user.findUnique({ where: { id: userId } });
+  const user = await db.user.findUnique({
+    where: { id: userId },
+  });
   if (!user) {
     return [
       {

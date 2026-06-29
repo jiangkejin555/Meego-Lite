@@ -200,6 +200,8 @@ function KanbanCard({
     task.status !== "done" &&
     task.status !== "closed";
 
+  const isMuted = task.status === "done" || task.status === "paused";
+
   return (
     <div
       ref={setNodeRef}
@@ -208,7 +210,10 @@ function KanbanCard({
       {...listeners}
       onClick={onClick}
       className={cn(
-        "rounded-lg border bg-card p-3 shadow-sm hover:shadow-md transition-shadow",
+        "rounded-lg border p-3 shadow-sm hover:shadow-md transition-shadow",
+        isMuted
+          ? "bg-slate-200/80 dark:bg-slate-900/45"
+          : "bg-card",
         draggable ? "cursor-pointer active:cursor-grabbing" : "cursor-pointer"
       )}
     >

@@ -1,0 +1,1 @@
+请先读取 `/Users/bytedance/Desktop/KOK/沉淀/APP/meego-lite/AGENTS.md`，然后按其中的开工流程和工作规则执行。

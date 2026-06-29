@@ -60,7 +60,7 @@ export async function verifyPassword(
 export const sessionCookieOptions = {
   httpOnly: true,
   sameSite: "lax" as const,
-  secure: process.env.COOKIE_SECURE === "true",
+  secure: process.env.NODE_ENV === "production",
   path: "/",
   maxAge: SESSION_MAX_AGE,
 };

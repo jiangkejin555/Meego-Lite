@@ -1,0 +1,193 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-06-24T00:00:00Z",
+  "features": [
+    {
+      "id": "feat-001",
+      "name": "任务管理（需求/任务/Bug）",
+      "description": "支持创建、编辑、删除任务，包含标题、描述、状态、优先级、截止时间、标签、预估/实际工时等字段",
+      "status": "done",
+      "priority": "p0",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-01-15T00:00:00Z",
+      "blocker": null,
+      "notes": "核心功能已完成，支持列表视图和看板视图"
+    },
+    {
+      "id": "feat-002",
+      "name": "看板拖拽",
+      "description": "基于 dnd-kit 的拖拽式任务看板，支持状态切换",
+      "status": "done",
+      "priority": "p0",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-01-20T00:00:00Z",
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "feat-003",
+      "name": "用户管理与 JWT 鉴权",
+      "description": "多用户协作，自定义 JWT 会话鉴权，邮箱验证码注册/登录",
+      "status": "done",
+      "priority": "p0",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-02-01T00:00:00Z",
+      "blocker": null,
+      "notes": "使用 jose + bcryptjs 实现"
+    },
+    {
+      "id": "feat-004",
+      "name": "项目管理",
+      "description": "项目创建、编辑、关联任务、负责人分配",
+      "status": "done",
+      "priority": "p0",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-02-10T00:00:00Z",
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "feat-005",
+      "name": "任务评论",
+      "description": "每个任务下可发表评论进行讨论交流",
+      "status": "done",
+      "priority": "p1",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-02-15T00:00:00Z",
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "feat-006",
+      "name": "进度更新",
+      "description": "任务进度历史记录，支持状态变更和内容更新",
+      "status": "done",
+      "priority": "p1",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-02-20T00:00:00Z",
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "feat-007",
+      "name": "多渠道通知",
+      "description": "站内通知 + 邮件(SMTP) + 飞书 Webhook + 企业微信 Webhook",
+      "status": "done",
+      "priority": "p1",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-03-01T00:00:00Z",
+      "blocker": null,
+      "notes": "支持截止提醒、任务分配、状态变更等通知类型"
+    },
+    {
+      "id": "feat-008",
+      "name": "仪表盘统计",
+      "description": "任务总览、状态分布、近期截止任务等数据可视化",
+      "status": "done",
+      "priority": "p1",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-03-10T00:00:00Z",
+      "blocker": null,
+      "notes": "使用 recharts 图表库"
+    },
+    {
+      "id": "feat-009",
+      "name": "明暗主题切换",
+      "description": "支持明亮/暗黑/跟随系统三种模式",
+      "status": "done",
+      "priority": "p2",
+      "createdAt": "2026-01-01T00:00:00Z",
+      "completedAt": "2026-03-15T00:00:00Z",
+      "blocker": null,
+      "notes": "基于 next-themes"
+    },
+    {
+      "id": "feat-010",
+      "name": "AI 报告生成",
+      "description": "基于 OpenAI API 生成日报/周报/自定义报告，支持导出 DOCX",
+      "status": "done",
+      "priority": "p1",
+      "createdAt": "2026-03-01T00:00:00Z",
+      "completedAt": "2026-06-20T00:00:00Z",
+      "blocker": null,
+      "notes": "支持用户级 OpenAI API Key 配置，Mock 模式用于预览"
+    },
+    {
+      "id": "feat-011",
+      "name": "Electron 桌面 App 打包",
+      "description": "打包为 macOS .dmg / Windows .exe，独立运行",
+      "status": "done",
+      "priority": "p2",
+      "createdAt": "2026-02-01T00:00:00Z",
+      "completedAt": "2026-04-01T00:00:00Z",
+      "blocker": null,
+      "notes": "standalone 产物瘦身脚本已配置"
+    },
+    {
+      "id": "feat-012",
+      "name": "阿里云服务器一键部署",
+      "description": "Makefile 实现首次部署、日常更新、SSL 配置、数据库备份迁移",
+      "status": "done",
+      "priority": "p2",
+      "createdAt": "2026-02-01T00:00:00Z",
+      "completedAt": "2026-04-15T00:00:00Z",
+      "blocker": null,
+      "notes": "包含 Nginx + PM2 + Certbot 完整配置"
+    },
+    {
+      "id": "feat-013",
+      "name": "Docker 部署支持",
+      "description": "Docker Compose 一键启动，数据持久化",
+      "status": "done",
+      "priority": "p2",
+      "createdAt": "2026-02-01T00:00:00Z",
+      "completedAt": "2026-03-20T00:00:00Z",
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "feat-014",
+      "name": "国际化支持",
+      "description": "基于 next-intl 的多语言支持",
+      "status": "in_progress",
+      "priority": "p2",
+      "createdAt": "2026-04-01T00:00:00Z",
+      "completedAt": null,
+      "blocker": null,
+      "notes": "框架已接入，部分页面待翻译"
+    },
+    {
+      "id": "feat-015",
+      "name": "响应式设计优化",
+      "description": "手机、平板、桌面端适配",
+      "status": "in_progress",
+      "priority": "p2",
+      "createdAt": "2026-04-01T00:00:00Z",
+      "completedAt": null,
+      "blocker": null,
+      "notes": "基础响应式已完成，部分复杂页面待优化"
+    },
+    {
+      "id": "feat-016",
+      "name": "移动端 App（Expo）",
+      "description": "基于 Expo 的 React Native 移动端应用，支持 iOS/Android",
+      "status": "in_progress",
+      "priority": "p1",
+      "createdAt": "2026-06-24T00:00:00Z",
+      "completedAt": null,
+      "blocker": null,
+      "notes": "mobile/ 目录已创建，tsconfig.json 已配置"
+    },
+    {
+      "id": "feat-017",
+      "name": "移动端推送通知",
+      "description": "Expo Push Token 管理，支持任务提醒推送",
+      "status": "in_progress",
+      "priority": "p1",
+      "createdAt": "2026-06-24T00:00:00Z",
+      "completedAt": null,
+      "blocker": null,
+      "notes": "PushToken 模型已添加到 schema，API 路由已创建"
+    }
+  ]
+}

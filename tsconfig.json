@@ -42,6 +42,7 @@
   "exclude": [
     "node_modules",
     "examples",
-    "dist-electron"
+    "dist-electron",
+    "mobile"
   ]
 }
