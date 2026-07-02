@@ -39,11 +39,11 @@ export async function middleware(req: NextRequest) {
         { error: "未登录或会话已过期" },
         { status: 401 }
       );
-      clearSessionCookie(res);
+      clearSessionCookie(res, req);
       return res;
     }
     const res = NextResponse.redirect(new URL("/login", req.url));
-    clearSessionCookie(res);
+    clearSessionCookie(res, req);
     return res;
   }
 

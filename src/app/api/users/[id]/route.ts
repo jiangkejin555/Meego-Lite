@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
 import {
-  SESSION_COOKIE,
   getSessionUser,
   hashPassword,
-  sessionCookieOptions,
+  clearSessionCookie,
   unauthorized,
 } from "@/lib/auth";
 import { consumeVerificationCode } from "@/lib/verification";
@@ -148,6 +147,6 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
   ]);
 
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE, "", { ...sessionCookieOptions, maxAge: 0 });
+  clearSessionCookie(res, req);
   return res;
 }

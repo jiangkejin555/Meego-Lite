@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
 import {
-  SESSION_COOKIE,
   hashPassword,
-  sessionCookieOptions,
+  setSessionCookie,
   signSession,
 } from "@/lib/auth";
 import { consumeVerificationCode } from "@/lib/verification";
@@ -75,6 +74,6 @@ export async function POST(req: NextRequest) {
 
   log.info("注册成功", { email, userId: user.id });
   const res = NextResponse.json({ user: safeUser });
-  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
+  setSessionCookie(res, req, token);
   return res;
 }

@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { ensureDatabaseSchema } from "@/lib/db-migrations";
 import {
-  SESSION_COOKIE,
-  sessionCookieOptions,
+  setSessionCookie,
   signSession,
   verifyPassword,
 } from "@/lib/auth";
@@ -77,6 +76,6 @@ export async function POST(req: NextRequest) {
 
   log.info("登录成功", { email, mode, userId: user.id });
   const res = NextResponse.json({ user: safeUser });
-  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions);
+  setSessionCookie(res, req, token);
   return res;
 }

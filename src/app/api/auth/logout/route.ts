@@ -22,6 +22,6 @@ export async function POST(req: NextRequest) {
   }
 
   const res = NextResponse.json({ ok: true });
-  clearSessionCookie(res);
+  clearSessionCookie(res, req);
   return res;
 }
