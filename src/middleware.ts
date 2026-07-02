@@ -20,10 +20,13 @@ export async function middleware(req: NextRequest) {
   const session = token ? await verifySession(token) : null;
   const isAuthed = Boolean(session);
 
-  // Logged-in users should not see the login page.
-  if (isAuthed && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", req.url));
-  }
+  // NOTE: middleware runs on the edge and can only do a stateless JWT check
+  // (verifySession), not the DB-backed sessionVersion check. We deliberately do
+  // NOT redirect an "authed" visitor away from /login here: after logout or an
+  // SSO kick the JWT can still be signature-valid while the session is already
+  // invalidated server-side, and bouncing /login -> / would trap the user on a
+  // page that immediately fails /api/auth/me. The login page itself redirects
+  // home after a successful login, so this cosmetic guard is unnecessary.
 
   // Public paths are always allowed through.
   if (isPublicPath(pathname)) {

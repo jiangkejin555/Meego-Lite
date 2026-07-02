@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import {
@@ -153,7 +152,6 @@ function PasswordInput({
 }
 
 export default function LoginPage() {
-  const router = useRouter();
   const { toast } = useToast();
 
   const [tab, setTab] = useState<"login" | "register">("login");
@@ -176,8 +174,9 @@ export default function LoginPage() {
 
   const goHome = () => {
     setView("home");
-    router.replace("/");
-    router.refresh();
+    // Hard navigation ensures middleware re-runs with the fresh session cookie
+    // and avoids the RSC race where router.refresh() aborts router.replace().
+    window.location.replace("/");
   };
 
   const handleLogin = async (e: React.FormEvent) => {

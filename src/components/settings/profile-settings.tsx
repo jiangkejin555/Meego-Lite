@@ -1323,7 +1323,6 @@ function AccountSettingsCard({
   onChangePassword: () => void;
 }) {
   const { toast } = useToast();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const setCurrentUser = useAppStore((s) => s.setCurrentUser);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -1339,16 +1338,16 @@ function AccountSettingsCard({
       }
       setCurrentUser(null);
       queryClient.clear();
-      router.replace("/login");
-      router.refresh();
+      // Hard navigation avoids the RSC race where router.refresh() aborts
+      // router.replace(), which otherwise leaves the user stuck on the page.
+      window.location.replace("/login");
     } catch (e) {
+      setLoggingOut(false);
       toast({
         title: "退出失败，请重试",
         description: (e as Error).message,
         variant: "destructive",
       });
-    } finally {
-      setLoggingOut(false);
     }
   };
 
@@ -1359,8 +1358,7 @@ function AccountSettingsCard({
       setCurrentUser(null);
       queryClient.clear();
       toast({ title: "账号已注销" });
-      router.replace("/login");
-      router.refresh();
+      window.location.replace("/login");
     },
     onError: (e: Error) =>
       toast({ title: "注销失败", description: e.message, variant: "destructive" }),

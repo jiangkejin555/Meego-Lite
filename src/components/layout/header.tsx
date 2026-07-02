@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppStore } from "@/store/app-store";
 import { Button } from "@/components/ui/button";
@@ -57,7 +56,6 @@ export function Header() {
   const view = useAppStore((s) => s.view);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const router = useRouter();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -73,16 +71,16 @@ export function Header() {
       }
       setCurrentUser(null);
       queryClient.clear();
-      router.replace("/login");
-      router.refresh();
+      // Hard navigation: a full reload re-runs middleware and fully resets client
+      // state, avoiding the RSC race where router.refresh() aborts router.replace().
+      window.location.replace("/login");
     } catch (e) {
+      setLoggingOut(false);
       toast({
         title: "退出失败，请重试",
         description: (e as Error).message,
         variant: "destructive",
       });
-    } finally {
-      setLoggingOut(false);
     }
   };
 
