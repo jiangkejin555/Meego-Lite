@@ -61,9 +61,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const token = await signSession({ uid: user.id, email: user.email });
+  const bumped = await db.user.update({
+    where: { id: user!.id },
+    data: { sessionVersion: { increment: 1 } },
+  });
 
-  const { passwordHash: _omit, ...safeUser } = user;
+  const token = await signSession({
+    uid: bumped.id,
+    email: bumped.email,
+    sv: bumped.sessionVersion,
+  });
+
+  const { passwordHash: _omit, ...safeUser } = bumped;
   void _omit;
 
   log.info("登录成功", { email, mode, userId: user.id });

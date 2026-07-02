@@ -61,10 +61,14 @@ export async function POST(req: NextRequest) {
 
   const passwordHash = await hashPassword(password);
   const user = await db.user.create({
-    data: { name, email, passwordHash },
+    data: { name, email, passwordHash, sessionVersion: 1 },
   });
 
-  const token = await signSession({ uid: user.id, email: user.email });
+  const token = await signSession({
+    uid: user.id,
+    email: user.email,
+    sv: user.sessionVersion,
+  });
 
   const { passwordHash: _omit, ...safeUser } = user;
   void _omit;

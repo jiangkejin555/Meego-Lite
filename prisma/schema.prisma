@@ -18,6 +18,7 @@ model User {
   avatar          String?
   feishuId        String?
   wecomId         String?
+  sessionVersion  Int      @default(0)
   // Notification preferences
   notifyEmail     Boolean  @default(true)
   notifyFeishu    Boolean  @default(false)

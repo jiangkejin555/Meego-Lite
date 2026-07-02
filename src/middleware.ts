@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, verifySession } from "@/lib/auth";
+import { SESSION_COOKIE, clearSessionCookie, verifySession } from "@/lib/auth";
 
 const PUBLIC_PATHS = new Set<string>([
   "/login",
   "/api/auth/login",
   "/api/auth/register",
   "/api/auth/send-code",
+  "/api/auth/logout",
 ]);
 
 function isPublicPath(pathname: string): boolean {
@@ -35,11 +36,11 @@ export async function middleware(req: NextRequest) {
         { error: "未登录或会话已过期" },
         { status: 401 }
       );
-      if (token) res.cookies.delete(SESSION_COOKIE);
+      clearSessionCookie(res);
       return res;
     }
     const res = NextResponse.redirect(new URL("/login", req.url));
-    if (token) res.cookies.delete(SESSION_COOKIE);
+    clearSessionCookie(res);
     return res;
   }
 

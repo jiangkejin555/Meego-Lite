@@ -51,6 +51,7 @@ const NAV: { key: ViewKey; label: string; icon: React.ElementType }[] = [
 
 export function Header() {
   const currentUser = useAppStore((s) => s.currentUser);
+  const setCurrentUser = useAppStore((s) => s.setCurrentUser);
   const setView = useAppStore((s) => s.setView);
   const openTaskForm = useAppStore((s) => s.openTaskForm);
   const view = useAppStore((s) => s.view);
@@ -65,13 +66,23 @@ export function Header() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || "退出失败，请重试");
+      }
+      setCurrentUser(null);
       queryClient.clear();
       router.replace("/login");
       router.refresh();
-    } catch {
+    } catch (e) {
+      toast({
+        title: "退出失败，请重试",
+        description: (e as Error).message,
+        variant: "destructive",
+      });
+    } finally {
       setLoggingOut(false);
-      toast({ title: "退出失败，请重试", variant: "destructive" });
     }
   };
 

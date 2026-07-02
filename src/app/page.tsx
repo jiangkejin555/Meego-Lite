@@ -44,6 +44,8 @@ export default function Home() {
     queryKey: ["me"],
     queryFn: fetchMe,
     staleTime: 5 * 60 * 1000,
+    refetchInterval: 30 * 1000,
+    refetchIntervalInBackground: true,
   });
 
   const router = useRouter();

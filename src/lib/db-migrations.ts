@@ -129,6 +129,12 @@ export async function ensureUserSchema(client: RawSqlDb) {
   await ensureColumn(
     client,
     "User",
+    "sessionVersion",
+    '"sessionVersion" INTEGER NOT NULL DEFAULT 0'
+  );
+  await ensureColumn(
+    client,
+    "User",
     "notifyEmail",
     '"notifyEmail" BOOLEAN NOT NULL DEFAULT 1'
   );

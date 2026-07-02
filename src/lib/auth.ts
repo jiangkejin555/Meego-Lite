@@ -10,7 +10,7 @@ const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
 
 const BCRYPT_SALT_ROUNDS = 10;
 
-export type SessionPayload = { uid: string; email: string };
+export type SessionPayload = { uid: string; email: string; sv: number };
 
 function getSecretKey(): Uint8Array {
   const secret = process.env.AUTH_SECRET;
@@ -23,7 +23,7 @@ function getSecretKey(): Uint8Array {
 }
 
 export async function signSession(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ uid: payload.uid, email: payload.email })
+  return new SignJWT({ uid: payload.uid, email: payload.email, sv: payload.sv })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
@@ -37,10 +37,12 @@ export async function verifySession(
     const { payload } = await jwtVerify(token, getSecretKey());
     const uid = payload.uid;
     const email = payload.email;
+    const sv = payload.sv;
     if (typeof uid !== "string" || typeof email !== "string") {
       return null;
     }
-    return { uid, email };
+    const resolvedSv = typeof sv === "number" ? sv : 0;
+    return { uid, email, sv: resolvedSv };
   } catch {
     return null;
   }
@@ -65,6 +67,10 @@ export const sessionCookieOptions = {
   maxAge: SESSION_MAX_AGE,
 };
 
+export function clearSessionCookie(res: NextResponse) {
+  res.cookies.set(SESSION_COOKIE, "", { ...sessionCookieOptions, maxAge: 0 });
+}
+
 export async function getSessionUser(req: NextRequest) {
   try {
     const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -76,7 +82,9 @@ export async function getSessionUser(req: NextRequest) {
     const user = await db.user.findFirst({
       where: { id: payload.uid, deletedAt: null },
     });
-    return user ?? null;
+    if (!user) return null;
+    if (user.sessionVersion !== payload.sv) return null;
+    return user;
   } catch {
     return null;
   }
@@ -87,7 +95,7 @@ export function unauthorized() {
     { error: "未登录或会话已过期" },
     { status: 401 }
   );
-  res.cookies.delete(SESSION_COOKIE);
+  clearSessionCookie(res);
   return res;
 }
 
